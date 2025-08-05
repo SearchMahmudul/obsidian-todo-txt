@@ -8,6 +8,7 @@
 
 ### 📋 **Smart Task Management**
 - **Todo.txt format** - Simple, portable, future-proof
+- **Multiple task files** - Any .txt file becomes a task list automatically
 - **Quick filters** - All, Today, Upcoming, Inbox, Archived, Completed
 - **Flexible sorting** - By priority, due date, creation date, alphabetical, projects, or contexts
 - **Project organization** - Custom icons, pinning, bulk operations
@@ -122,6 +123,7 @@ Support for flexible recurrence patterns:
 ## 🎯 Pro Tips
 
 - Use `Alt+N` anywhere in Obsidian to quickly add tasks
+- Use multiple .txt files for different contexts: `work.txt`, `personal.txt`
 - Search with hashtags: `#meeting` finds all meeting-related tasks
 - Set up projects for different areas: `+Work`, `+Personal`, `+Learning`
 - Use contexts for energy levels: `@high-energy`, `@low-energy`
