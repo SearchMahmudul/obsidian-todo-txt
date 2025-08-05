@@ -156,6 +156,12 @@ var Icons = {
 function getIcon(name) {
   return Icons[name] || "";
 }
+function createSVGElement(svgString) {
+  const tempDiv = document.createElement("div");
+  tempDiv.innerHTML = svgString;
+  const svgElement = tempDiv.firstElementChild;
+  return svgElement;
+}
 
 // src/utils/taskCounter.ts
 var TaskCounter = class {
@@ -209,7 +215,8 @@ var FilterItem = class {
       item.addClass("selected");
     }
     const icon = item.createSpan("project-icon");
-    icon.innerHTML = getIcon(filterId);
+    const svgElement = createSVGElement(getIcon(filterId));
+    icon.appendChild(svgElement);
     const text = item.createSpan("project-text");
     text.setText(label);
     const countEl = item.createSpan("project-count");
@@ -482,7 +489,8 @@ var TaskItem = class {
       const iconSpan = projectEl.createSpan("todo-project-icon");
       const icon = this.getProjectIcon(project);
       if (icon.includes("<svg")) {
-        iconSpan.innerHTML = icon;
+        const svgElement = createSVGElement(icon);
+        iconSpan.appendChild(svgElement);
       } else {
         iconSpan.setText(icon);
       }
@@ -508,7 +516,8 @@ var TaskItem = class {
       const hasRecurrence = item.keyValuePairs.rec || item.description.includes("rec:");
       if (hasRecurrence) {
         const repeatIcon = dueDateEl.createSpan("repeat-icon");
-        repeatIcon.innerHTML = Icons.repeat;
+        const repeatSvg = createSVGElement(Icons.repeat);
+        repeatIcon.appendChild(repeatSvg);
       }
       if (dueDateStatus) {
         dueDateEl.addClass(dueDateStatus);
@@ -527,7 +536,8 @@ var TaskItem = class {
         const iconSpan = projectEl.createSpan("todo-project-icon");
         const icon = this.getProjectIcon(project);
         if (icon.includes("<svg")) {
-          iconSpan.innerHTML = icon;
+          const svgElement = createSVGElement(icon);
+          iconSpan.appendChild(svgElement);
         } else {
           iconSpan.setText(icon);
         }
@@ -598,7 +608,8 @@ var TaskControls = class {
   renderSearchInput(container, searchQuery) {
     const searchContainer = container.createDiv("search-container");
     const searchIcon = searchContainer.createSpan("search-icon");
-    searchIcon.innerHTML = Icons.search;
+    const searchSvg = createSVGElement(Icons.search);
+    searchIcon.appendChild(searchSvg);
     const searchInput = searchContainer.createEl("input", {
       type: "text",
       placeholder: "Search",
@@ -610,7 +621,8 @@ var TaskControls = class {
       title: "Clear search",
       cls: "clear-search-btn"
     });
-    clearBtn.innerHTML = Icons.clear;
+    const clearSvg = createSVGElement(Icons.clear);
+    clearBtn.appendChild(clearSvg);
     const updateClearButtonVisibility = () => {
       if (searchInput.value.trim() === "") {
         clearBtn.addClass("hidden");
@@ -639,7 +651,8 @@ var TaskControls = class {
   // Render sort options toggle button
   renderSortToggle(container) {
     const sortToggleBtn = container.createDiv("sort-toggle-btn");
-    sortToggleBtn.innerHTML = Icons.sort;
+    const sortSvg = createSVGElement(Icons.sort);
+    sortToggleBtn.appendChild(sortSvg);
     sortToggleBtn.setAttribute("title", "Toggle sort options");
     sortToggleBtn.addEventListener("click", () => {
       var _a;
@@ -714,7 +727,8 @@ var TaskControls = class {
         cls: "empty-tasks-button mobile-fab-button"
       });
       const iconSpan = emptyButton.createSpan("empty-tasks-icon");
-      iconSpan.innerHTML = Icons.trash;
+      const trashSvg = createSVGElement(Icons.trash);
+      iconSpan.appendChild(trashSvg);
       emptyButton.createSpan("empty-tasks-text").setText("Empty");
       emptyButton.addEventListener("click", () => {
         this.taskManager.openEmptyCompletedTasksModal();
@@ -724,7 +738,8 @@ var TaskControls = class {
         cls: "add-task-button mobile-fab-button"
       });
       const iconSpan = addButton.createSpan("add-task-icon");
-      iconSpan.innerHTML = Icons.add;
+      const addSvg = createSVGElement(Icons.add);
+      iconSpan.appendChild(addSvg);
       addButton.createSpan("add-task-text").setText("Add task");
       addButton.addEventListener("click", () => {
         this.taskManager.openAddTaskModal(
@@ -901,19 +916,22 @@ var ViewRenderer = class {
     const icon = this.projectManager.getProjectIcon(project);
     if (icon) {
       if (icon.includes("<svg")) {
-        projectIcon.innerHTML = icon;
+        const svgElement = createSVGElement(icon);
+        projectIcon.appendChild(svgElement);
       } else {
         projectIcon.setText(icon);
       }
     } else {
-      projectIcon.innerHTML = Icons.hash;
+      const hashSvg = createSVGElement(Icons.hash);
+      projectIcon.appendChild(hashSvg);
     }
     const projectText = projectItem.createSpan("project-text");
     projectText.setText(project.replace(/_/g, " "));
     const projectCount = projectItem.createSpan("project-count");
     projectCount.setText(count.toString());
     const projectMenu = projectItem.createSpan("project-menu");
-    projectMenu.innerHTML = Icons.threeDots;
+    const dotsSvg = createSVGElement(Icons.threeDots);
+    projectMenu.appendChild(dotsSvg);
     projectMenu.addClass("project-menu-dots");
     projectItem.addEventListener("click", (e) => {
       if (e.target === projectMenu || projectMenu.contains(e.target)) {
@@ -932,7 +950,8 @@ var ViewRenderer = class {
     const headerContainer = container.createDiv("projects-header-container");
     const title = headerContainer.createEl("h3", { text: "Projects" });
     const addIcon = headerContainer.createSpan("add-project-icon");
-    addIcon.innerHTML = Icons.add;
+    const addSvg = createSVGElement(Icons.add);
+    addIcon.appendChild(addSvg);
     headerContainer.addEventListener("click", (e) => {
       if (e.target === addIcon || addIcon.contains(e.target)) {
         e.stopPropagation();
@@ -951,7 +970,8 @@ var ViewRenderer = class {
     const stickyHeader = tasksSection.createDiv("todo-header-sticky");
     const headerContainer = stickyHeader.createDiv("header-title-container");
     const mobileMenuBtn = headerContainer.createDiv("mobile-menu-btn");
-    mobileMenuBtn.innerHTML = Icons.menu;
+    const menuSvg = createSVGElement(Icons.menu);
+    mobileMenuBtn.appendChild(menuSvg);
     mobileMenuBtn.addEventListener("click", () => {
       this.toggleMobileSidebar();
     });
@@ -3514,8 +3534,8 @@ var TodoTxtPlugin = class extends import_obsidian7.Plugin {
       this.activateView();
     });
     this.addCommand({
-      id: "open-todo-txt",
-      name: "Open Todo.txt",
+      id: "open-task",
+      name: "Open Task",
       callback: () => this.activateView()
     });
     this.addCommand({
