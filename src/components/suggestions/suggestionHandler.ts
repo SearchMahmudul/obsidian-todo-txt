@@ -55,8 +55,8 @@ export class SuggestionHandler {
 
         this.suggestions = document.createElement('div');
         this.suggestions.className = `${this.config.type}-suggestions suggestion-container`;
-        this.suggestions.style.top = `${rect.top + cursorCoords.top + cursorCoords.height + 5}px`;
-        this.suggestions.style.left = `${rect.left + cursorCoords.left}px`;
+        this.suggestions.style.setProperty('--suggestion-top', `${rect.top + cursorCoords.top + cursorCoords.height + 5}px`);
+        this.suggestions.style.setProperty('--suggestion-left', `${rect.left + cursorCoords.left}px`);
 
         // Create suggestion items
         items.forEach((item, index) => {
@@ -110,17 +110,12 @@ export class SuggestionHandler {
 
         mirrorDiv.className = 'textarea-mirror';
 
-        // Copy all styles to mirror
-        mirrorDiv.style.width = computedStyle.width;
-        mirrorDiv.style.font = computedStyle.font;
-        mirrorDiv.style.fontSize = computedStyle.fontSize;
-        mirrorDiv.style.fontFamily = computedStyle.fontFamily;
-        mirrorDiv.style.fontWeight = computedStyle.fontWeight;
-        mirrorDiv.style.lineHeight = computedStyle.lineHeight;
-        mirrorDiv.style.letterSpacing = computedStyle.letterSpacing;
-        mirrorDiv.style.padding = computedStyle.padding;
-        mirrorDiv.style.border = computedStyle.border;
-        mirrorDiv.style.boxSizing = computedStyle.boxSizing;
+        // Copy essential positioning properties
+        mirrorDiv.style.setProperty('--mirror-width', computedStyle.width);
+        mirrorDiv.style.setProperty('--mirror-font', computedStyle.font);
+        mirrorDiv.style.setProperty('--mirror-line-height', computedStyle.lineHeight);
+        mirrorDiv.style.setProperty('--mirror-padding', computedStyle.padding);
+        mirrorDiv.style.setProperty('--mirror-border', computedStyle.border);
 
         // Add text up to cursor
         const textBeforeCursor = textarea.value.substring(0, caretPosition);

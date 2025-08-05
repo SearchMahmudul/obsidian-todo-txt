@@ -218,6 +218,8 @@
 /* Context Menu */
 .project-context-menu {
     position: fixed;
+    top: var(--menu-top, 0);
+    left: var(--menu-left, 0);
     background: var(--background-primary);
     border: 1px solid var(--background-modifier-border);
     border-radius: 8px;
@@ -1108,7 +1110,9 @@
 
 /* Suggestion Container */
 .suggestion-container {
-    position: absolute;
+    position: fixed;
+    top: var(--suggestion-top, 0);
+    left: var(--suggestion-left, 0);
     min-width: 120px;
     max-height: 200px;
     border: 1px solid var(--background-modifier-border);
@@ -1131,18 +1135,24 @@
     background-color: var(--background-modifier-hover);
 }
 
-/* Cursor Positioning */
+/* Caret Positioning */
 .textarea-mirror {
-    position: absolute !important;
-    visibility: hidden !important;
-    white-space: pre-wrap !important;
-    word-wrap: break-word !important;
-    top: 0 !important;
-    left: 0 !important;
+    position: absolute;
+    top: -9999px;
+    left: -9999px;
+    width: var(--mirror-width, auto);
+    font: var(--mirror-font, inherit);
+    line-height: var(--mirror-line-height, normal);
+    padding: var(--mirror-padding, 0);
+    border: var(--mirror-border, none);
+    box-sizing: border-box;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    visibility: hidden;
 }
 
 .textarea-cursor-span {
-    position: absolute !important;
+    position: relative;
 }
 
 /* Mobile Adjustments */

@@ -141,8 +141,8 @@ export class ProjectManager {
 
         const menu = document.createElement('div');
         menu.className = 'project-context-menu';
-        menu.style.left = `${event.clientX}px`;
-        menu.style.top = `${event.clientY}px`;
+        menu.style.setProperty('--menu-left', `${event.clientX}px`);
+        menu.style.setProperty('--menu-top', `${event.clientY}px`);
 
         // Edit option
         const editOption = menu.createEl('div', {

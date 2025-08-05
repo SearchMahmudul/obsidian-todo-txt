@@ -37,3 +37,11 @@ export type IconName = keyof typeof Icons;
 export function getIcon(name: IconName): string {
     return Icons[name] || '';
 }
+
+// SVG element from SVG string
+export function createSVGElement(svgString: string): SVGElement {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = svgString;
+    const svgElement = tempDiv.firstElementChild as SVGElement;
+    return svgElement;
+}

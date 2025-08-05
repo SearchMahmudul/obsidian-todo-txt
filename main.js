@@ -1421,8 +1421,8 @@ var SuggestionHandler = class {
     const cursorCoords = this.getTextareaCaretPosition(textarea, cursorPosition);
     this.suggestions = document.createElement("div");
     this.suggestions.className = `${this.config.type}-suggestions suggestion-container`;
-    this.suggestions.style.top = `${rect.top + cursorCoords.top + cursorCoords.height + 5}px`;
-    this.suggestions.style.left = `${rect.left + cursorCoords.left}px`;
+    this.suggestions.style.setProperty("--suggestion-top", `${rect.top + cursorCoords.top + cursorCoords.height + 5}px`);
+    this.suggestions.style.setProperty("--suggestion-left", `${rect.left + cursorCoords.left}px`);
     items.forEach((item, index) => {
       const suggestionEl = document.createElement("div");
       suggestionEl.className = "suggestion-item";
@@ -1461,16 +1461,11 @@ var SuggestionHandler = class {
     const mirrorDiv = document.createElement("div");
     const computedStyle = window.getComputedStyle(textarea);
     mirrorDiv.className = "textarea-mirror";
-    mirrorDiv.style.width = computedStyle.width;
-    mirrorDiv.style.font = computedStyle.font;
-    mirrorDiv.style.fontSize = computedStyle.fontSize;
-    mirrorDiv.style.fontFamily = computedStyle.fontFamily;
-    mirrorDiv.style.fontWeight = computedStyle.fontWeight;
-    mirrorDiv.style.lineHeight = computedStyle.lineHeight;
-    mirrorDiv.style.letterSpacing = computedStyle.letterSpacing;
-    mirrorDiv.style.padding = computedStyle.padding;
-    mirrorDiv.style.border = computedStyle.border;
-    mirrorDiv.style.boxSizing = computedStyle.boxSizing;
+    mirrorDiv.style.setProperty("--mirror-width", computedStyle.width);
+    mirrorDiv.style.setProperty("--mirror-font", computedStyle.font);
+    mirrorDiv.style.setProperty("--mirror-line-height", computedStyle.lineHeight);
+    mirrorDiv.style.setProperty("--mirror-padding", computedStyle.padding);
+    mirrorDiv.style.setProperty("--mirror-border", computedStyle.border);
     const textBeforeCursor = textarea.value.substring(0, caretPosition);
     mirrorDiv.textContent = textBeforeCursor;
     const cursorSpan = document.createElement("span");
@@ -2511,8 +2506,8 @@ var ProjectManager = class {
     }
     const menu = document.createElement("div");
     menu.className = "project-context-menu";
-    menu.style.left = `${event.clientX}px`;
-    menu.style.top = `${event.clientY}px`;
+    menu.style.setProperty("--menu-left", `${event.clientX}px`);
+    menu.style.setProperty("--menu-top", `${event.clientY}px`);
     const editOption = menu.createEl("div", {
       text: "Edit",
       cls: "project-context-menu-item"
