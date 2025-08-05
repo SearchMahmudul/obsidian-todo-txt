@@ -2,7 +2,7 @@ import { TodoItem } from '../types';
 import { TaskManager } from './taskManager';
 import { ProjectManager } from './projectManager';
 import { FilterManager, FilterState } from './filterManager';
-import { Icons } from '../utils/icons';
+import { Icons, createSVGElement } from '../utils/icons';
 import { TaskCounter } from '../utils/taskCounter';
 import { FilterItem } from '../components/ui/filterItem';
 import { TaskItem } from '../components/ui/taskItem';
@@ -216,12 +216,14 @@ export class ViewRenderer {
 
         if (icon) {
             if (icon.includes('<svg')) {
-                projectIcon.innerHTML = icon;
+                const svgElement = createSVGElement(icon);
+                projectIcon.appendChild(svgElement);
             } else {
                 projectIcon.setText(icon);
             }
         } else {
-            projectIcon.innerHTML = Icons.hash;
+            const hashSvg = createSVGElement(Icons.hash);
+            projectIcon.appendChild(hashSvg);
         }
 
         // Project name
@@ -234,7 +236,8 @@ export class ViewRenderer {
 
         // Context menu button
         const projectMenu = projectItem.createSpan('project-menu');
-        projectMenu.innerHTML = Icons.threeDots;
+        const dotsSvg = createSVGElement(Icons.threeDots);
+        projectMenu.appendChild(dotsSvg);
         projectMenu.addClass('project-menu-dots');
 
         // Handle clicks
@@ -261,7 +264,8 @@ export class ViewRenderer {
         const headerContainer = container.createDiv('projects-header-container');
         const title = headerContainer.createEl('h3', { text: 'Projects' });
         const addIcon = headerContainer.createSpan('add-project-icon');
-        addIcon.innerHTML = Icons.add;
+        const addSvg = createSVGElement(Icons.add);
+        addIcon.appendChild(addSvg);
 
         // Handle add project click
         headerContainer.addEventListener('click', (e) => {
@@ -293,7 +297,8 @@ export class ViewRenderer {
 
         // Mobile menu button
         const mobileMenuBtn = headerContainer.createDiv('mobile-menu-btn');
-        mobileMenuBtn.innerHTML = Icons.menu;
+        const menuSvg = createSVGElement(Icons.menu);
+        mobileMenuBtn.appendChild(menuSvg);
         mobileMenuBtn.addEventListener('click', () => {
             this.toggleMobileSidebar();
         });

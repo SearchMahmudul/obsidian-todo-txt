@@ -1,4 +1,4 @@
-import { Icons, getIcon } from '../../utils/icons';
+import { Icons, getIcon, createSVGElement } from '../../utils/icons';
 import { FilterState } from '../../managers/filterManager';
 
 export class FilterItem {
@@ -21,7 +21,8 @@ export class FilterItem {
 
         // Filter icon
         const icon = item.createSpan('project-icon');
-        icon.innerHTML = getIcon(filterId as keyof typeof Icons);
+        const svgElement = createSVGElement(getIcon(filterId as keyof typeof Icons));
+        icon.appendChild(svgElement);
 
         // Filter label
         const text = item.createSpan('project-text');

@@ -1,7 +1,7 @@
 import { FilterManager } from '../../managers/filterManager';
 import { TaskManager } from '../../managers/taskManager';
 import { ProjectManager } from '../../managers/projectManager';
-import { Icons } from '../../utils/icons';
+import { Icons, createSVGElement } from '../../utils/icons';
 
 export class TaskControls {
     // UI element references
@@ -46,7 +46,8 @@ export class TaskControls {
         const searchContainer = container.createDiv('search-container');
 
         const searchIcon = searchContainer.createSpan('search-icon');
-        searchIcon.innerHTML = Icons.search;
+        const searchSvg = createSVGElement(Icons.search);
+        searchIcon.appendChild(searchSvg);
 
         const searchInput = searchContainer.createEl('input', {
             type: 'text',
@@ -62,7 +63,8 @@ export class TaskControls {
             cls: 'clear-search-btn'
         });
 
-        clearBtn.innerHTML = Icons.clear;
+        const clearSvg = createSVGElement(Icons.clear);
+        clearBtn.appendChild(clearSvg);
 
         // Show clear button only when text exists
         const updateClearButtonVisibility = () => {
@@ -100,7 +102,8 @@ export class TaskControls {
     // Render sort options toggle button
     private renderSortToggle(container: HTMLElement): void {
         const sortToggleBtn = container.createDiv('sort-toggle-btn');
-        sortToggleBtn.innerHTML = Icons.sort;
+        const sortSvg = createSVGElement(Icons.sort);
+        sortToggleBtn.appendChild(sortSvg);
         sortToggleBtn.setAttribute('title', 'Toggle sort options');
 
         // Toggle sort options visibility
@@ -197,7 +200,8 @@ export class TaskControls {
             });
 
             const iconSpan = emptyButton.createSpan('empty-tasks-icon');
-            iconSpan.innerHTML = Icons.trash;
+            const trashSvg = createSVGElement(Icons.trash);
+            iconSpan.appendChild(trashSvg);
 
             emptyButton.createSpan('empty-tasks-text').setText('Empty');
 
@@ -211,7 +215,8 @@ export class TaskControls {
             });
 
             const iconSpan = addButton.createSpan('add-task-icon');
-            iconSpan.innerHTML = Icons.add;
+            const addSvg = createSVGElement(Icons.add);
+            iconSpan.appendChild(addSvg);
 
             addButton.createSpan('add-task-text').setText('Add task');
 

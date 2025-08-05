@@ -1,6 +1,6 @@
 import { TodoItem } from '../../types';
 import { DateUtils } from '../../utils/dateUtils';
-import { Icons } from '../../utils/icons';
+import { Icons, createSVGElement } from '../../utils/icons';
 import { TaskManager } from '../../managers/taskManager';
 import { ProjectManager } from '../../managers/projectManager';
 
@@ -193,7 +193,8 @@ export class TaskItem {
             const icon = this.getProjectIcon(project);
 
             if (icon.includes('<svg')) {
-                iconSpan.innerHTML = icon;
+                const svgElement = createSVGElement(icon);
+                iconSpan.appendChild(svgElement);
             } else {
                 iconSpan.setText(icon);
             }
@@ -227,7 +228,8 @@ export class TaskItem {
             const hasRecurrence = item.keyValuePairs.rec || item.description.includes('rec:');
             if (hasRecurrence) {
                 const repeatIcon = dueDateEl.createSpan('repeat-icon');
-                repeatIcon.innerHTML = Icons.repeat;
+                const repeatSvg = createSVGElement(Icons.repeat);
+                repeatIcon.appendChild(repeatSvg);
             }
 
             if (dueDateStatus) {
@@ -254,7 +256,8 @@ export class TaskItem {
                 const icon = this.getProjectIcon(project);
 
                 if (icon.includes('<svg')) {
-                    iconSpan.innerHTML = icon;
+                    const svgElement = createSVGElement(icon);
+                    iconSpan.appendChild(svgElement);
                 } else {
                     iconSpan.setText(icon);
                 }
