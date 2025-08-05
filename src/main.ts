@@ -33,8 +33,8 @@ export default class TodoTxtPlugin extends Plugin {
 
         // Open todo command
         this.addCommand({
-            id: 'open-todo-txt',
-            name: 'Open Todo.txt',
+            id: 'open-task',
+            name: 'Open Task',
             callback: () => this.activateView()
         });
 
