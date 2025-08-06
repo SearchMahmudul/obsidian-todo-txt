@@ -27,14 +27,14 @@ export default class TodoTxtPlugin extends Plugin {
         );
 
         // Add ribbon icon
-        this.addRibbonIcon('circle-check-big', 'Open Todo.txt', () => {
+        this.addRibbonIcon('circle-check-big', 'Open task', () => {
             this.activateView();
         });
 
         // Open todo command
         this.addCommand({
             id: 'open-task',
-            name: 'Open Task',
+            name: 'Open task',
             callback: () => this.activateView()
         });
 
