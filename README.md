@@ -23,7 +23,7 @@
 - **Theme compatible** - Works seamlessly with all Obsidian themes
 - **Instant search** - Find tasks across all projects
 - **Smart suggestions** - Autocomplete for projects, contexts, and priorities
-- **Keyboard shortcuts** - `Alt+N` to add tasks, `/` for quick commands
+- **Keyboard shortcuts** - Assign custom hotkeys to “Add task” and “Open task”
 - **Bulk operations** - Manage multiple completed tasks at once
 
 ### ⚡ **Quick Input**
@@ -33,20 +33,11 @@ Type `/` for quick commands:
 - `/Project` - Assign to projects  
 - `/Context` - Add context tags
 
-Use shortcuts: `@context` `+project` `!priority` `*date`
-
-### ⌨️ **Keyboard Shortcuts**
-
-| Shortcut | Action |
-|----------|--------|
-| `Alt+N` | Add new task |
-| `/` | Open command menu |
-| `@` | Insert context |
-| `+` | Assign project |
-| `*` | Set due date |
-| `!` | Set priority |
-| `Enter` | Save task |
-| `Esc` | Close dialog |
+Or use symbol shortcuts (works like `/`):
+- `@context` - Add context tags
+- `+project` - Assign to projects
+- `!priority` - Set priority levels
+- `*date` - Set due dates
 
 ## 🔧 Installation
 
@@ -63,8 +54,8 @@ Use shortcuts: `@context` `+project` `!priority` `*date`
 ## 📖 Usage
 
 ### Getting Started
-1. Open the plugin via ribbon icon or `Ctrl/Cmd+P` → "Open Todo.txt"
-2. Create your first task by clicking "Add task" or pressing `Alt+N`
+1. Open the plugin via ribbon icon or `Ctrl/Cmd+P` → "Open task"
+2. Create your first task by clicking "Add task" or assign a custom hotkey in Settings → Hotkeys
 3. Organize with projects, set priorities, and add due dates
 
 ### Todo.txt Format
@@ -122,7 +113,7 @@ Support for flexible recurrence patterns:
 
 ## 🎯 Pro Tips
 
-- Use `Alt+N` anywhere in Obsidian to quickly add tasks
+- Set a custom hotkey for "Todo.txt: Add task" in Settings → Hotkeys for quick task creation anywhere in Obsidian
 - Use multiple .txt files for different contexts: `work.txt`, `personal.txt`
 - Search with hashtags: `#meeting` finds all meeting-related tasks
 - Set up projects for different areas: `+Work`, `+Personal`, `+Learning`
