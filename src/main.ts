@@ -38,11 +38,10 @@ export default class TodoTxtPlugin extends Plugin {
             callback: () => this.activateView()
         });
 
-        // Add task hotkey (Alt+N)
+        // Add task command
         this.addCommand({
             id: 'add-task',
             name: 'Add task',
-            hotkeys: [{ modifiers: ['Alt'], key: 'n' }],
             callback: () => {
                 // Use existing view or create new modal
                 const activeLeaf = this.app.workspace.getActiveViewOfType(TodoTxtView);

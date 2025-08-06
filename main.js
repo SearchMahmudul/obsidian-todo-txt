@@ -3541,7 +3541,6 @@ var TodoTxtPlugin = class extends import_obsidian7.Plugin {
     this.addCommand({
       id: "add-task",
       name: "Add task",
-      hotkeys: [{ modifiers: ["Alt"], key: "n" }],
       callback: () => {
         const activeLeaf = this.app.workspace.getActiveViewOfType(TodoTxtView);
         if (activeLeaf) {
