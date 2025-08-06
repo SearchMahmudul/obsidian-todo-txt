@@ -3530,12 +3530,12 @@ var TodoTxtPlugin = class extends import_obsidian7.Plugin {
         }
       })
     );
-    this.addRibbonIcon("circle-check-big", "Open Todo.txt", () => {
+    this.addRibbonIcon("circle-check-big", "Open task", () => {
       this.activateView();
     });
     this.addCommand({
       id: "open-task",
-      name: "Open Task",
+      name: "Open task",
       callback: () => this.activateView()
     });
     this.addCommand({
