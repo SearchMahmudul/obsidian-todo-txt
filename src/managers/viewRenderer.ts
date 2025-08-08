@@ -3,17 +3,16 @@ import { TaskManager } from './taskManager';
 import { ProjectManager } from './projectManager';
 import { FilterManager, FilterState } from './filterManager';
 import { Icons, createSVGElement } from '../utils/icons';
-import { TaskCounter } from '../utils/taskCounter';
-import { FilterItem } from '../components/ui/filterItem';
 import { TaskItem } from '../components/ui/taskItem';
 import { TaskControls } from '../components/ui/taskControls';
+import { ProjectsSidebar } from '../components/ui/projectsSidebar';
 import { TFile } from 'obsidian';
 
 export class ViewRenderer {
     // UI component renderers
     private taskItemRenderer: TaskItem;
     private taskControls: TaskControls;
-    private projectsListEl: HTMLElement | null = null;
+    private projectsSidebar: ProjectsSidebar;
     private searchInputHasFocus: boolean = false;
     private mobileSidebarOpen: boolean = false;
 
@@ -24,6 +23,8 @@ export class ViewRenderer {
     public onSortChange: (sortOption: string) => void = () => { };
     public onContextFilterChange: (context: string) => void = () => { };
     public onSpecialFilterSelect: (filter: string) => void = () => { };
+    public onProjectReorder: (projectName: string, newIndex: number, isPinned: boolean) => void = () => { };
+    public onProjectTogglePin: (projectName: string, shouldPin: boolean) => void = () => { };
 
     constructor(
         private containerEl: HTMLElement,
@@ -45,6 +46,16 @@ export class ViewRenderer {
             (sortOption) => this.onSortChange(sortOption),
             (context) => this.onContextFilterChange(context)
         );
+
+        this.projectsSidebar = new ProjectsSidebar(
+            projectManager,
+            (project) => this.onProjectSelect(project),
+            (filter) => this.onTimeFilterSelect(filter),
+            (filter) => this.onSpecialFilterSelect(filter),
+            (projectName, newIndex, isPinned) => this.onProjectReorder(projectName, newIndex, isPinned),
+            (projectName, shouldPin) => this.onProjectTogglePin(projectName, shouldPin),
+            () => this.toggleMobileSidebar()
+        );
     }
 
     // Render complete view layout
@@ -52,8 +63,8 @@ export class ViewRenderer {
         filteredItems: TodoItem[],
         allItems: TodoItem[],
         filterState: FilterState,
-        pinnedProjects: Set<string>,
-        allKnownProjects: Set<string>,
+        pinnedProjects: string[],
+        allKnownProjects: string[],
         file: TFile | null
     ): void {
         // Preserve focus and scroll position
@@ -74,7 +85,7 @@ export class ViewRenderer {
             this.toggleMobileSidebar();
         });
 
-        this.renderProjectsSidebar(mainLayout, allItems, filterState, pinnedProjects, allKnownProjects, file);
+        this.projectsSidebar.render(mainLayout, allItems, filterState, pinnedProjects, allKnownProjects, file, this.mobileSidebarOpen);
 
         const tasksMain = mainLayout.createDiv('tasks-main');
         this.renderTasksSection(tasksMain, filteredItems, filterState);
@@ -110,178 +121,6 @@ export class ViewRenderer {
                 overlay?.removeClass('visible');
             }
         }
-    }
-
-    // Render left sidebar with filters and projects
-    private renderProjectsSidebar(
-        container: HTMLElement,
-        allItems: TodoItem[],
-        filterState: FilterState,
-        pinnedProjects: Set<string>,
-        allKnownProjects: Set<string>,
-        file: TFile | null
-    ): void {
-        const sidebar = container.createDiv('projects-sidebar');
-        if (this.mobileSidebarOpen) {
-            sidebar.addClass('mobile-open');
-        }
-
-        const topSection = sidebar.createDiv('projects-top-section');
-
-        // Render default filters
-        const filters = [
-            { id: 'all', label: 'All', count: TaskCounter.getAllTasksCount(allItems) },
-            { id: 'today', label: 'Today', count: TaskCounter.getTodayTasksCount(allItems) },
-            { id: 'upcoming', label: 'Upcoming', count: TaskCounter.getUpcomingTasksCount(allItems) },
-            { id: 'inbox', label: 'Inbox', count: TaskCounter.getInboxTasksCount(allItems) },
-            { id: 'archived', label: 'Archived', count: TaskCounter.getArchivedTasksCount(allItems) },
-            { id: 'completed', label: 'Completed', count: TaskCounter.getCompletedTasksCount(allItems) }
-        ];
-
-        filters.forEach(filter => {
-            FilterItem.render(
-                topSection,
-                filter.id,
-                filter.label,
-                filter.count,
-                filterState,
-                () => {
-                    this.handleFilterClick(filter.id);
-                    if (window.innerWidth <= 768) {
-                        this.toggleMobileSidebar();
-                    }
-                }
-            );
-        });
-
-        // Separate pinned and unpinned projects
-        const projectCounts = this.projectManager.getProjectCounts(allItems);
-        const pinnedProjectCounts = projectCounts.filter(p => pinnedProjects.has(p.project));
-        const unpinnedProjectCounts = projectCounts.filter(p => !pinnedProjects.has(p.project));
-
-        // Render pinned projects section
-        if (pinnedProjectCounts.length > 0) {
-            const pinnedHeaderContainer = sidebar.createDiv('pinned-header-container');
-            pinnedHeaderContainer.createEl('h3', { text: 'Pinned' });
-
-            const pinnedList = sidebar.createDiv('projects-list pinned-projects-list');
-            pinnedProjectCounts.forEach(({ project, count }) => {
-                this.renderProjectItem(pinnedList, project, count, filterState, file);
-            });
-        }
-
-        this.renderProjectsSection(sidebar, unpinnedProjectCounts, filterState, file);
-    }
-
-    // Handle filter button clicks
-    private handleFilterClick(filterId: string): void {
-        switch (filterId) {
-            case 'all':
-                this.onProjectSelect('');
-                this.onTimeFilterSelect('');
-                this.onSpecialFilterSelect('');
-                break;
-            case 'today':
-            case 'upcoming':
-                this.onTimeFilterSelect(filterId);
-                break;
-            case 'inbox':
-                this.onProjectSelect('Inbox');
-                break;
-            case 'archived':
-            case 'completed':
-                this.onSpecialFilterSelect(filterId);
-                break;
-        }
-    }
-
-    // Render single project list item
-    private renderProjectItem(
-        container: HTMLElement,
-        project: string,
-        count: number,
-        filterState: FilterState,
-        file: TFile | null
-    ): void {
-        const projectItem = container.createDiv('project-item');
-
-        // Highlight if selected
-        if (filterState.selectedProject === project && !filterState.archivedFilter && !filterState.completedFilter) {
-            projectItem.addClass('selected');
-        }
-
-        // Project icon
-        const projectIcon = projectItem.createSpan('project-icon');
-        const icon = this.projectManager.getProjectIcon(project);
-
-        if (icon) {
-            if (icon.includes('<svg')) {
-                const svgElement = createSVGElement(icon);
-                projectIcon.appendChild(svgElement);
-            } else {
-                projectIcon.setText(icon);
-            }
-        } else {
-            const hashSvg = createSVGElement(Icons.hash);
-            projectIcon.appendChild(hashSvg);
-        }
-
-        // Project name
-        const projectText = projectItem.createSpan('project-text');
-        projectText.setText(project.replace(/_/g, ' '));
-
-        // Task count
-        const projectCount = projectItem.createSpan('project-count');
-        projectCount.setText(count.toString());
-
-        // Context menu button
-        const projectMenu = projectItem.createSpan('project-menu');
-        const dotsSvg = createSVGElement(Icons.threeDots);
-        projectMenu.appendChild(dotsSvg);
-        projectMenu.addClass('project-menu-dots');
-
-        // Handle clicks
-        projectItem.addEventListener('click', (e) => {
-            if (e.target === projectMenu || projectMenu.contains(e.target as Node)) {
-                e.stopPropagation();
-                this.projectManager.showProjectMenu(e, project, file);
-            } else {
-                this.onProjectSelect(project);
-                if (window.innerWidth <= 768) {
-                    this.toggleMobileSidebar();
-                }
-            }
-        });
-    }
-
-    // Render projects section with header
-    private renderProjectsSection(
-        container: HTMLElement,
-        projectCounts: { project: string; count: number }[],
-        filterState: FilterState,
-        file: TFile | null
-    ): void {
-        const headerContainer = container.createDiv('projects-header-container');
-        const title = headerContainer.createEl('h3', { text: 'Projects' });
-        const addIcon = headerContainer.createSpan('add-project-icon');
-        const addSvg = createSVGElement(Icons.add);
-        addIcon.appendChild(addSvg);
-
-        // Handle add project click
-        headerContainer.addEventListener('click', (e) => {
-            if (e.target === addIcon || addIcon.contains(e.target as Node)) {
-                e.stopPropagation();
-                this.projectManager.openAddProjectModal(file);
-            }
-        });
-
-        const projectsList = container.createDiv('projects-list');
-        this.projectsListEl = projectsList;
-
-        // Render all projects
-        projectCounts.forEach(({ project, count }) => {
-            this.renderProjectItem(projectsList, project, count, filterState, file);
-        });
     }
 
     // Render main tasks area

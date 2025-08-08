@@ -6,8 +6,8 @@ import TodoTxtPlugin from '../main';
 
 export class ProjectManager {
     // Project data stores
-    public pinnedProjects: Set<string> = new Set();
-    public allKnownProjects: Set<string> = new Set();
+    public pinnedProjects: string[] = [];
+    public allKnownProjects: string[] = [];
     public projectIcons: Map<string, string> = new Map();
 
     // Callback handlers
@@ -21,13 +21,20 @@ export class ProjectManager {
 
     // Extract projects from todo items
     updateFromTodoItems(items: TodoItem[]): void {
+        const newProjects: string[] = [];
+
         items.forEach(item => {
             item.projects.forEach(project => {
                 if (project !== 'Inbox' && project !== 'Archived') {
-                    this.allKnownProjects.add(project);
+                    if (!this.allKnownProjects.includes(project) && !newProjects.includes(project)) {
+                        newProjects.push(project);
+                    }
                 }
             });
         });
+
+        // Add new projects to the end
+        this.allKnownProjects.push(...newProjects);
     }
 
     // Count active tasks per project
@@ -55,17 +62,69 @@ export class ProjectManager {
             projectCounts.set('Inbox', 0);
         }
 
-        return Array.from(projectCounts.entries())
+        const allProjectCounts = Array.from(projectCounts.entries())
             .map(([project, count]) => ({ project, count }))
-            .filter(({ project }) => project !== 'Inbox' && project !== 'Archived')
-            .sort((a, b) => a.project.localeCompare(b.project));
+            .filter(({ project }) => project !== 'Inbox' && project !== 'Archived');
+
+        // Sort by allKnownProjects order
+        return allProjectCounts.sort((a, b) => {
+            const aIndex = this.allKnownProjects.indexOf(a.project);
+            const bIndex = this.allKnownProjects.indexOf(b.project);
+
+            if (aIndex === -1 && bIndex === -1) {
+                return a.project.localeCompare(b.project);
+            }
+            if (aIndex === -1) return 1;
+            if (bIndex === -1) return -1;
+
+            return aIndex - bIndex;
+        });
+    }
+
+    // Get ordered pinned projects
+    getOrderedPinnedProjects(projectCounts: { project: string; count: number }[]): { project: string; count: number }[] {
+        const pinnedCounts = projectCounts.filter(p => this.pinnedProjects.includes(p.project));
+
+        return pinnedCounts.sort((a, b) => {
+            const aIndex = this.pinnedProjects.indexOf(a.project);
+            const bIndex = this.pinnedProjects.indexOf(b.project);
+
+            if (aIndex === -1 && bIndex === -1) {
+                return a.project.localeCompare(b.project);
+            }
+            if (aIndex === -1) return 1;
+            if (bIndex === -1) return -1;
+
+            return aIndex - bIndex;
+        });
+    }
+
+    // Reorder project in array
+    reorderProject(projectName: string, targetIndex: number, isPinned: boolean): void {
+        const array = isPinned ? this.pinnedProjects : this.allKnownProjects;
+        const sourceIndex = array.indexOf(projectName);
+
+        if (sourceIndex === -1 || sourceIndex === targetIndex) return;
+        const [item] = array.splice(sourceIndex, 1);
+
+        let insertIndex = targetIndex;
+        if (sourceIndex < targetIndex) {
+            insertIndex = targetIndex - 1;
+        }
+
+        array.splice(insertIndex, 0, item);
+    }
+
+    // Remove duplicates from allKnownProjects
+    private removeDuplicates(): void {
+        this.allKnownProjects = [...new Set(this.allKnownProjects)];
     }
 
     // Get all projects for dropdowns
     getAvailableProjects(): string[] {
-        const projects = new Set<string>(this.allKnownProjects);
-        projects.add('Archived');
-        return Array.from(projects).sort();
+        const projects = [...this.allKnownProjects];
+        projects.push('Archived');
+        return projects.sort();
     }
 
     // Open modal to create project
@@ -155,7 +214,7 @@ export class ProjectManager {
         });
 
         // Pin/unpin option
-        const isPinned = this.pinnedProjects.has(projectName);
+        const isPinned = this.pinnedProjects.includes(projectName);
         const pinOption = menu.createEl('div', {
             text: isPinned ? 'Unpin' : 'Pin',
             cls: 'project-context-menu-item'
@@ -202,26 +261,38 @@ export class ProjectManager {
         modal.open();
     }
 
-    // Update project name in sets
+    // Update project name in arrays
     async renameProject(oldName: string, newName: string, file: TFile | null): Promise<void> {
-        if (this.pinnedProjects.has(oldName)) {
-            this.pinnedProjects.delete(oldName);
-            this.pinnedProjects.add(newName);
+        const pinnedIndex = this.pinnedProjects.indexOf(oldName);
+        if (pinnedIndex !== -1) {
+            this.pinnedProjects[pinnedIndex] = newName;
             await this.savePinnedProjects(file);
         }
 
-        if (this.allKnownProjects.has(oldName)) {
-            this.allKnownProjects.delete(oldName);
-            this.allKnownProjects.add(newName);
+        const projectIndex = this.allKnownProjects.indexOf(oldName);
+        if (projectIndex !== -1) {
+            this.allKnownProjects[projectIndex] = newName;
+            this.removeDuplicates();
             await this.saveAllKnownProjects(file);
         }
     }
 
     // Remove project from all data
     async deleteProject(projectName: string, file: TFile | null): Promise<void> {
-        this.allKnownProjects.delete(projectName);
-        this.pinnedProjects.delete(projectName);
+        const allIndex = this.allKnownProjects.indexOf(projectName);
+        if (allIndex !== -1) {
+            this.allKnownProjects.splice(allIndex, 1);
+        }
+
+        const pinnedIndex = this.pinnedProjects.indexOf(projectName);
+        if (pinnedIndex !== -1) {
+            this.pinnedProjects.splice(pinnedIndex, 1);
+        }
+
         this.projectIcons.delete(projectName);
+
+        this.removeDuplicates();
+
         await this.saveAllKnownProjects(file);
         await this.savePinnedProjects(file);
         await this.saveProjectIcons(file);
@@ -235,7 +306,7 @@ export class ProjectManager {
             this.plugin.settings.pinnedProjects = {};
         }
 
-        this.plugin.settings.pinnedProjects[file.path] = Array.from(this.pinnedProjects);
+        this.plugin.settings.pinnedProjects[file.path] = [...this.pinnedProjects];
         await this.plugin.saveSettings();
     }
 
@@ -244,9 +315,9 @@ export class ProjectManager {
         if (!file) return;
 
         if (this.plugin.settings.pinnedProjects && this.plugin.settings.pinnedProjects[file.path]) {
-            this.pinnedProjects = new Set(this.plugin.settings.pinnedProjects[file.path]);
+            this.pinnedProjects = [...this.plugin.settings.pinnedProjects[file.path]];
         } else {
-            this.pinnedProjects = new Set();
+            this.pinnedProjects = [];
         }
     }
 
@@ -258,7 +329,7 @@ export class ProjectManager {
             this.plugin.settings.allKnownProjects = {};
         }
 
-        this.plugin.settings.allKnownProjects[file.path] = Array.from(this.allKnownProjects);
+        this.plugin.settings.allKnownProjects[file.path] = [...this.allKnownProjects];
         await this.plugin.saveSettings();
     }
 
@@ -267,9 +338,9 @@ export class ProjectManager {
         if (!file) return;
 
         if (this.plugin.settings.allKnownProjects && this.plugin.settings.allKnownProjects[file.path]) {
-            this.allKnownProjects = new Set(this.plugin.settings.allKnownProjects[file.path]);
+            this.allKnownProjects = [...this.plugin.settings.allKnownProjects[file.path]];
         } else {
-            this.allKnownProjects = new Set();
+            this.allKnownProjects = [];
         }
     }
 }

@@ -20,7 +20,7 @@ export class StateManager {
 
         // Restore pinned projects
         if (state.pinnedProjects) {
-            projectManager.pinnedProjects = new Set(state.pinnedProjects);
+            projectManager.pinnedProjects = [...(state.pinnedProjects || [])];
         }
 
         // Load file or default
@@ -42,7 +42,7 @@ export class StateManager {
     saveState(view: TodoTxtView): any {
         const file = view.getFile();
         const filterState = view.getFilterManager().getState();
-        const pinnedProjects = Array.from(view.getProjectManager().pinnedProjects);
+        const pinnedProjects = [...view.getProjectManager().pinnedProjects];
 
         return {
             file: file?.path || null,

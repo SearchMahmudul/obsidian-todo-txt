@@ -144,6 +144,22 @@ export class TodoTxtView extends ItemView {
 		this.renderer.onSpecialFilterSelect = (filter) => {
 			this.filterManager.setSpecialFilter(filter);
 		};
+
+		this.renderer.onProjectReorder = async (projectName, newIndex, isPinned) => {
+			this.projectManager.reorderProject(projectName, newIndex, isPinned);
+
+			if (isPinned) {
+				await this.projectManager.savePinnedProjects(this.file);
+			} else {
+				await this.projectManager.saveAllKnownProjects(this.file);
+			}
+
+			this.refresh();
+		};
+
+		this.renderer.onProjectTogglePin = async (projectName, shouldPin) => {
+			await this.projectManager.onProjectPin(projectName, shouldPin);
+		};
 	}
 
 	getViewType(): string {

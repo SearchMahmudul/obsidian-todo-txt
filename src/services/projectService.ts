@@ -10,7 +10,9 @@ export class ProjectService {
 
     // Create new empty project
     async createEmptyProject(file: TFile | null, projectName: string): Promise<void> {
-        this.projectManager.allKnownProjects.add(projectName);
+        if (!this.projectManager.allKnownProjects.includes(projectName)) {
+            this.projectManager.allKnownProjects.push(projectName);
+        }
         await this.projectManager.saveAllKnownProjects(file);
     }
 
@@ -31,9 +33,14 @@ export class ProjectService {
     // Pin or unpin project
     async toggleProjectPin(file: TFile | null, projectName: string, isPinned: boolean): Promise<void> {
         if (isPinned) {
-            this.projectManager.pinnedProjects.add(projectName);
+            if (!this.projectManager.pinnedProjects.includes(projectName)) {
+                this.projectManager.pinnedProjects.push(projectName);
+            }
         } else {
-            this.projectManager.pinnedProjects.delete(projectName);
+            const index = this.projectManager.pinnedProjects.indexOf(projectName);
+            if (index !== -1) {
+                this.projectManager.pinnedProjects.splice(index, 1);
+            }
         }
         await this.projectManager.savePinnedProjects(file);
     }
