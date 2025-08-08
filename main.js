@@ -163,87 +163,6 @@ function createSVGElement(svgString) {
   return svgElement;
 }
 
-// src/utils/taskCounter.ts
-var TaskCounter = class {
-  // Count active tasks
-  static getAllTasksCount(items) {
-    return items.filter((item) => !item.completed && !item.projects.includes("Archived")).length;
-  }
-  // Count tasks due today or overdue
-  static getTodayTasksCount(items) {
-    const today = new Date().toISOString().split("T")[0];
-    return items.filter((item) => {
-      if (item.completed)
-        return false;
-      const dueMatch = item.description.match(/due:(\d{4}-\d{2}-\d{2})/);
-      return dueMatch && dueMatch[1] <= today;
-    }).length;
-  }
-  // Count future tasks
-  static getUpcomingTasksCount(items) {
-    const today = new Date().toISOString().split("T")[0];
-    return items.filter((item) => {
-      if (item.completed)
-        return false;
-      const dueMatch = item.description.match(/due:(\d{4}-\d{2}-\d{2})/);
-      return dueMatch && dueMatch[1] > today;
-    }).length;
-  }
-  // Count unorganized tasks
-  static getInboxTasksCount(items) {
-    return items.filter(
-      (item) => !item.completed && (item.projects.length === 0 || item.projects.includes("Inbox"))
-    ).length;
-  }
-  // Count archived tasks
-  static getArchivedTasksCount(items) {
-    return items.filter((item) => item.projects.includes("Archived")).length;
-  }
-  // Count finished tasks
-  static getCompletedTasksCount(items) {
-    return items.filter((item) => item.completed).length;
-  }
-};
-
-// src/components/ui/filterItem.ts
-var FilterItem = class {
-  // Render sidebar filter button
-  static render(container, filterId, label, count, filterState, onClick) {
-    const item = container.createDiv(`project-item ${filterId}-filter`);
-    const isSelected = this.isFilterSelected(filterId, filterState);
-    if (isSelected) {
-      item.addClass("selected");
-    }
-    const icon = item.createSpan("project-icon");
-    const svgElement = createSVGElement(getIcon(filterId));
-    icon.appendChild(svgElement);
-    const text = item.createSpan("project-text");
-    text.setText(label);
-    const countEl = item.createSpan("project-count");
-    countEl.setText(count.toString());
-    item.addEventListener("click", onClick);
-  }
-  // Check if filter is currently active
-  static isFilterSelected(filterId, filterState) {
-    switch (filterId) {
-      case "all":
-        return !filterState.selectedProject && !filterState.selectedTimeFilter && !filterState.archivedFilter && !filterState.completedFilter;
-      case "today":
-        return filterState.selectedTimeFilter === "today" && !filterState.archivedFilter && !filterState.completedFilter;
-      case "upcoming":
-        return filterState.selectedTimeFilter === "upcoming" && !filterState.archivedFilter && !filterState.completedFilter;
-      case "inbox":
-        return filterState.selectedProject === "Inbox" && !filterState.selectedTimeFilter && !filterState.archivedFilter && !filterState.completedFilter;
-      case "archived":
-        return filterState.archivedFilter;
-      case "completed":
-        return filterState.completedFilter;
-      default:
-        return false;
-    }
-  }
-};
-
 // src/utils/dateUtils.ts
 var DateUtils = class {
   // Format date for display
@@ -759,6 +678,495 @@ var TaskControls = class {
   }
 };
 
+// src/utils/taskCounter.ts
+var TaskCounter = class {
+  // Count active tasks
+  static getAllTasksCount(items) {
+    return items.filter((item) => !item.completed && !item.projects.includes("Archived")).length;
+  }
+  // Count tasks due today or overdue
+  static getTodayTasksCount(items) {
+    const today = new Date().toISOString().split("T")[0];
+    return items.filter((item) => {
+      if (item.completed)
+        return false;
+      const dueMatch = item.description.match(/due:(\d{4}-\d{2}-\d{2})/);
+      return dueMatch && dueMatch[1] <= today;
+    }).length;
+  }
+  // Count future tasks
+  static getUpcomingTasksCount(items) {
+    const today = new Date().toISOString().split("T")[0];
+    return items.filter((item) => {
+      if (item.completed)
+        return false;
+      const dueMatch = item.description.match(/due:(\d{4}-\d{2}-\d{2})/);
+      return dueMatch && dueMatch[1] > today;
+    }).length;
+  }
+  // Count unorganized tasks
+  static getInboxTasksCount(items) {
+    return items.filter(
+      (item) => !item.completed && (item.projects.length === 0 || item.projects.includes("Inbox"))
+    ).length;
+  }
+  // Count archived tasks
+  static getArchivedTasksCount(items) {
+    return items.filter((item) => item.projects.includes("Archived")).length;
+  }
+  // Count finished tasks
+  static getCompletedTasksCount(items) {
+    return items.filter((item) => item.completed).length;
+  }
+};
+
+// src/components/ui/filterItem.ts
+var FilterItem = class {
+  // Render sidebar filter button
+  static render(container, filterId, label, count, filterState, onClick) {
+    const item = container.createDiv(`project-item ${filterId}-filter`);
+    const isSelected = this.isFilterSelected(filterId, filterState);
+    if (isSelected) {
+      item.addClass("selected");
+    }
+    const icon = item.createSpan("project-icon");
+    const svgElement = createSVGElement(getIcon(filterId));
+    icon.appendChild(svgElement);
+    const text = item.createSpan("project-text");
+    text.setText(label);
+    const countEl = item.createSpan("project-count");
+    countEl.setText(count.toString());
+    item.addEventListener("click", onClick);
+  }
+  // Check if filter is currently active
+  static isFilterSelected(filterId, filterState) {
+    switch (filterId) {
+      case "all":
+        return !filterState.selectedProject && !filterState.selectedTimeFilter && !filterState.archivedFilter && !filterState.completedFilter;
+      case "today":
+        return filterState.selectedTimeFilter === "today" && !filterState.archivedFilter && !filterState.completedFilter;
+      case "upcoming":
+        return filterState.selectedTimeFilter === "upcoming" && !filterState.archivedFilter && !filterState.completedFilter;
+      case "inbox":
+        return filterState.selectedProject === "Inbox" && !filterState.selectedTimeFilter && !filterState.archivedFilter && !filterState.completedFilter;
+      case "archived":
+        return filterState.archivedFilter;
+      case "completed":
+        return filterState.completedFilter;
+      default:
+        return false;
+    }
+  }
+};
+
+// src/components/ui/dragHandler.ts
+var DragHandler = class {
+  constructor(onReorder, onTogglePin) {
+    this.onReorder = onReorder;
+    this.onTogglePin = onTogglePin;
+    // Mobile touch state
+    this.isDragging = false;
+    this.startY = 0;
+    this.startX = 0;
+    this.longPressTimer = null;
+    this.longPressActivated = false;
+    this.touchHandled = false;
+    this.dragClone = null;
+  }
+  // Setup all drag events for draggable item
+  setupDragEvents(dragItem, itemName, container) {
+    this.setupDesktopDragEvents(dragItem, itemName, container);
+    this.setupMobileTouchEvents(dragItem, itemName, container);
+    return () => this.touchHandled;
+  }
+  // Desktop drag and drop events
+  setupDesktopDragEvents(dragItem, itemName, container) {
+    dragItem.addEventListener("dragstart", (e) => {
+      var _a;
+      (_a = e.dataTransfer) == null ? void 0 : _a.setData("text/plain", itemName);
+      dragItem.addClass("dragging");
+    });
+    dragItem.addEventListener("dragend", () => {
+      dragItem.removeClass("dragging");
+      document.querySelectorAll(".section-highlight").forEach((el) => el.removeClass("section-highlight"));
+      document.querySelectorAll(".drop-target-highlight").forEach((el) => el.removeClass("drop-target-highlight"));
+    });
+    dragItem.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      const draggingElement = container.querySelector(".dragging");
+      if (!draggingElement || draggingElement === dragItem)
+        return;
+      const draggedFromPinned = draggingElement.closest(".pinned-projects-list") !== null;
+      const isPinnedContainer = container.classList.contains("pinned-projects-list");
+      container.querySelectorAll(".drop-target-highlight").forEach((el) => el.removeClass("drop-target-highlight"));
+      if (draggedFromPinned === isPinnedContainer) {
+        const rect = dragItem.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        const isAbove = e.clientY < midY;
+        if (isAbove) {
+          dragItem.addClass("drop-target-highlight");
+        } else {
+          const nextItem = dragItem.nextElementSibling;
+          if (nextItem && nextItem.classList.contains("project-item")) {
+            nextItem.addClass("drop-target-highlight");
+          }
+        }
+      }
+    });
+    dragItem.addEventListener("drop", (e) => {
+      var _a;
+      e.preventDefault();
+      container.querySelectorAll(".drop-target-highlight").forEach((el) => el.removeClass("drop-target-highlight"));
+      const draggedItem = (_a = e.dataTransfer) == null ? void 0 : _a.getData("text/plain");
+      if (!draggedItem || draggedItem === itemName)
+        return;
+      const draggedElement = document.querySelector(`[data-project="${draggedItem}"]`);
+      if (!draggedElement)
+        return;
+      const isPinnedContainer = container.classList.contains("pinned-projects-list");
+      const draggedFromPinned = draggedElement.closest(".pinned-projects-list") !== null;
+      if (draggedFromPinned !== isPinnedContainer) {
+        this.onTogglePin(draggedItem, isPinnedContainer);
+      } else {
+        this.handleDrop(draggedItem, itemName, container);
+      }
+    });
+  }
+  // Mobile touch events
+  setupMobileTouchEvents(dragItem, itemName, container) {
+    dragItem.addEventListener("touchstart", (e) => {
+      this.startY = e.touches[0].clientY;
+      this.startX = e.touches[0].clientX;
+      this.isDragging = false;
+      this.longPressActivated = false;
+      this.touchHandled = false;
+      this.longPressTimer = setTimeout(() => {
+        this.longPressActivated = true;
+        this.touchHandled = true;
+        dragItem.addClass("long-press-ready");
+      }, 500);
+    });
+    dragItem.addEventListener("touchmove", (e) => {
+      const currentY = e.touches[0].clientY;
+      const currentX = e.touches[0].clientX;
+      const moveDistance = Math.sqrt(Math.pow(currentX - this.startX, 2) + Math.pow(currentY - this.startY, 2));
+      if (!this.longPressActivated && moveDistance > 10) {
+        if (this.longPressTimer) {
+          clearTimeout(this.longPressTimer);
+          this.longPressTimer = null;
+        }
+        return;
+      }
+      if (this.longPressActivated && !this.isDragging && moveDistance > 5) {
+        this.isDragging = true;
+        this.touchHandled = true;
+        dragItem.addClass("dragging");
+        this.dragClone = dragItem.cloneNode(true);
+        this.dragClone.addClass("mobile-drag-clone");
+        document.body.appendChild(this.dragClone);
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      if (this.isDragging && this.dragClone) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.dragClone.style.setProperty("--drag-x", `${currentX - 100}px`);
+        this.dragClone.style.setProperty("--drag-y", `${currentY - 25}px`);
+        this.updateDragHighlights(currentX, currentY, dragItem, container);
+      }
+    });
+    dragItem.addEventListener("touchend", (e) => {
+      if (this.longPressTimer) {
+        clearTimeout(this.longPressTimer);
+        this.longPressTimer = null;
+      }
+      dragItem.removeClass("long-press-ready");
+      if (this.isDragging) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.touchHandled = true;
+        this.handleTouchDrop(e, itemName, dragItem);
+        this.cleanupDrag();
+      }
+      setTimeout(() => {
+        this.isDragging = false;
+        this.longPressActivated = false;
+        this.touchHandled = false;
+      }, 50);
+    });
+    dragItem.addEventListener("touchcancel", () => {
+      this.cancelDrag(dragItem);
+    });
+  }
+  // Update drag highlights during touch move
+  updateDragHighlights(currentX, currentY, dragItem, container) {
+    const elementBelow = document.elementFromPoint(currentX, currentY);
+    const targetItem = elementBelow == null ? void 0 : elementBelow.closest(".project-item");
+    const targetSection = elementBelow == null ? void 0 : elementBelow.closest(".projects-list, .pinned-projects-list");
+    document.querySelectorAll(".drop-target-highlight, .section-highlight").forEach((el) => {
+      el.removeClass("drop-target-highlight");
+      el.removeClass("section-highlight");
+    });
+    if (targetSection) {
+      const isPinnedTarget = targetSection.classList.contains("pinned-projects-list");
+      const isDraggedFromPinned = container.classList.contains("pinned-projects-list");
+      if (isDraggedFromPinned !== isPinnedTarget) {
+        targetSection.addClass("section-highlight");
+      }
+      if (targetItem && targetItem !== dragItem && isDraggedFromPinned === isPinnedTarget) {
+        targetItem.addClass("drop-target-highlight");
+      }
+    }
+  }
+  // Touch drop
+  handleTouchDrop(e, itemName, dragItem) {
+    const touch = e.changedTouches[0];
+    const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+    const targetItem = elementBelow == null ? void 0 : elementBelow.closest(".project-item");
+    if (targetItem && targetItem !== dragItem && targetItem.dataset.project) {
+      const targetContainer = targetItem.closest(".projects-list, .pinned-projects-list");
+      const draggedContainer = dragItem.closest(".projects-list, .pinned-projects-list");
+      const isPinnedTarget = (targetContainer == null ? void 0 : targetContainer.classList.contains("pinned-projects-list")) || false;
+      const isDraggedFromPinned = (draggedContainer == null ? void 0 : draggedContainer.classList.contains("pinned-projects-list")) || false;
+      if (isDraggedFromPinned !== isPinnedTarget) {
+        this.onTogglePin(itemName, isPinnedTarget);
+      } else {
+        const highlightedElement = targetContainer.querySelector(".drop-target-highlight");
+        if (highlightedElement && highlightedElement.dataset.project) {
+          const projectElements = Array.from(targetContainer.querySelectorAll(".project-item"));
+          const targetIndex = projectElements.indexOf(highlightedElement);
+          this.onReorder(itemName, targetIndex, isPinnedTarget);
+        }
+      }
+    }
+  }
+  // Desktop drop
+  handleDrop(draggedItem, targetItem, container) {
+    const isPinnedContainer = container.classList.contains("pinned-projects-list");
+    const projectElements = Array.from(container.querySelectorAll(".project-item"));
+    const targetElement = projectElements.find((el) => el.dataset.project === targetItem);
+    if (!targetElement)
+      return;
+    const targetIndex = projectElements.indexOf(targetElement);
+    this.onReorder(draggedItem, targetIndex, isPinnedContainer);
+  }
+  // Clean up drag elements
+  cleanupDrag() {
+    if (this.dragClone) {
+      this.dragClone.remove();
+      this.dragClone = null;
+    }
+    document.querySelectorAll(".drop-target-highlight, .section-highlight").forEach((el) => {
+      el.removeClass("drop-target-highlight");
+      el.removeClass("section-highlight");
+    });
+  }
+  // Cancel drag operation
+  cancelDrag(dragItem) {
+    if (this.longPressTimer) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+    dragItem.removeClass("long-press-ready");
+    dragItem.removeClass("dragging");
+    this.cleanupDrag();
+    this.isDragging = false;
+    this.longPressActivated = false;
+    this.touchHandled = false;
+  }
+};
+
+// src/components/ui/projectItem.ts
+var ProjectItem = class {
+  constructor(projectManager, onProjectSelect, onProjectReorder, onProjectTogglePin, toggleMobileSidebar) {
+    this.projectManager = projectManager;
+    this.onProjectSelect = onProjectSelect;
+    this.onProjectReorder = onProjectReorder;
+    this.onProjectTogglePin = onProjectTogglePin;
+    this.toggleMobileSidebar = toggleMobileSidebar;
+    this.dragHandler = new DragHandler(onProjectReorder, onProjectTogglePin);
+  }
+  render(container, project, count, filterState, file) {
+    const projectItem = container.createDiv("project-item");
+    projectItem.draggable = true;
+    projectItem.dataset.project = project;
+    if (filterState.selectedProject === project && !filterState.archivedFilter && !filterState.completedFilter) {
+      projectItem.addClass("selected");
+    }
+    this.renderProjectContent(projectItem, project, count);
+    this.setupEventListeners(projectItem, project, container, file);
+  }
+  // Render project visual content
+  renderProjectContent(projectItem, project, count) {
+    const projectIcon = projectItem.createSpan("project-icon");
+    const icon = this.projectManager.getProjectIcon(project);
+    if (icon) {
+      if (icon.includes("<svg")) {
+        const svgElement = createSVGElement(icon);
+        projectIcon.appendChild(svgElement);
+      } else {
+        projectIcon.setText(icon);
+      }
+    } else {
+      const hashSvg = createSVGElement(Icons.hash);
+      projectIcon.appendChild(hashSvg);
+    }
+    const projectText = projectItem.createSpan("project-text");
+    projectText.setText(project.replace(/_/g, " "));
+    const projectCount = projectItem.createSpan("project-count");
+    projectCount.setText(count.toString());
+    const projectMenu = projectItem.createSpan("project-menu");
+    const dotsSvg = createSVGElement(Icons.threeDots);
+    projectMenu.appendChild(dotsSvg);
+    projectMenu.addClass("project-menu-dots");
+  }
+  // Setup all event listeners
+  setupEventListeners(projectItem, project, container, file) {
+    const isTouchHandled = this.dragHandler.setupDragEvents(projectItem, project, container);
+    projectItem.addEventListener("click", (e) => {
+      if (isTouchHandled()) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      const projectMenu = projectItem.querySelector(".project-menu");
+      if (e.target === projectMenu || (projectMenu == null ? void 0 : projectMenu.contains(e.target))) {
+        e.stopPropagation();
+        this.projectManager.showProjectMenu(e, project, file);
+      } else {
+        this.onProjectSelect(project);
+        if (window.innerWidth <= 768) {
+          this.toggleMobileSidebar();
+        }
+      }
+    });
+  }
+};
+
+// src/components/ui/projectsSidebar.ts
+var ProjectsSidebar = class {
+  constructor(projectManager, onProjectSelect, onTimeFilterSelect, onSpecialFilterSelect, onProjectReorder, onProjectTogglePin, toggleMobileSidebar) {
+    this.projectManager = projectManager;
+    this.onProjectSelect = onProjectSelect;
+    this.onTimeFilterSelect = onTimeFilterSelect;
+    this.onSpecialFilterSelect = onSpecialFilterSelect;
+    this.onProjectReorder = onProjectReorder;
+    this.onProjectTogglePin = onProjectTogglePin;
+    this.toggleMobileSidebar = toggleMobileSidebar;
+    this.projectItemRenderer = new ProjectItem(
+      projectManager,
+      onProjectSelect,
+      onProjectReorder,
+      onProjectTogglePin,
+      toggleMobileSidebar
+    );
+  }
+  render(container, allItems, filterState, pinnedProjects, allKnownProjects, file, mobileSidebarOpen) {
+    const sidebar = container.createDiv("projects-sidebar");
+    if (mobileSidebarOpen) {
+      sidebar.addClass("mobile-open");
+    }
+    const topSection = sidebar.createDiv("projects-top-section");
+    const filters = [
+      { id: "all", label: "All", count: TaskCounter.getAllTasksCount(allItems) },
+      { id: "today", label: "Today", count: TaskCounter.getTodayTasksCount(allItems) },
+      { id: "upcoming", label: "Upcoming", count: TaskCounter.getUpcomingTasksCount(allItems) },
+      { id: "inbox", label: "Inbox", count: TaskCounter.getInboxTasksCount(allItems) },
+      { id: "archived", label: "Archived", count: TaskCounter.getArchivedTasksCount(allItems) },
+      { id: "completed", label: "Completed", count: TaskCounter.getCompletedTasksCount(allItems) }
+    ];
+    filters.forEach((filter) => {
+      FilterItem.render(
+        topSection,
+        filter.id,
+        filter.label,
+        filter.count,
+        filterState,
+        () => {
+          this.handleFilterClick(filter.id);
+          if (window.innerWidth <= 768) {
+            this.toggleMobileSidebar();
+          }
+        }
+      );
+    });
+    const projectCounts = this.projectManager.getProjectCounts(allItems);
+    const pinnedProjectCounts = this.projectManager.getOrderedPinnedProjects(projectCounts);
+    const unpinnedProjectCounts = projectCounts.filter((p) => !pinnedProjects.includes(p.project));
+    if (pinnedProjectCounts.length > 0) {
+      const pinnedHeaderContainer = sidebar.createDiv("pinned-header-container");
+      pinnedHeaderContainer.createEl("h3", { text: "Pinned" });
+      const pinnedList = sidebar.createDiv("projects-list pinned-projects-list");
+      this.addSectionDragEvents(pinnedList, true);
+      pinnedProjectCounts.forEach(({ project, count }) => {
+        this.projectItemRenderer.render(pinnedList, project, count, filterState, file);
+      });
+    }
+    this.renderProjectsSection(sidebar, unpinnedProjectCounts, filterState, file);
+  }
+  // Filter button clicks
+  handleFilterClick(filterId) {
+    switch (filterId) {
+      case "all":
+        this.onProjectSelect("");
+        this.onTimeFilterSelect("");
+        this.onSpecialFilterSelect("");
+        break;
+      case "today":
+      case "upcoming":
+        this.onTimeFilterSelect(filterId);
+        break;
+      case "inbox":
+        this.onProjectSelect("Inbox");
+        break;
+      case "archived":
+      case "completed":
+        this.onSpecialFilterSelect(filterId);
+        break;
+    }
+  }
+  // Add drag highlight
+  addSectionDragEvents(container, isPinnedSection) {
+    container.addEventListener("dragover", (e) => {
+      const draggingElement = document.querySelector(".dragging");
+      if (!draggingElement)
+        return;
+      const draggedFromPinned = draggingElement.closest(".pinned-projects-list") !== null;
+      if (draggedFromPinned !== isPinnedSection) {
+        e.preventDefault();
+        container.addClass("section-highlight");
+      }
+    });
+    container.addEventListener("dragleave", (e) => {
+      if (!container.contains(e.relatedTarget)) {
+        container.removeClass("section-highlight");
+      }
+    });
+    container.addEventListener("drop", () => {
+      container.removeClass("section-highlight");
+    });
+  }
+  // Render projects section with header
+  renderProjectsSection(container, projectCounts, filterState, file) {
+    const headerContainer = container.createDiv("projects-header-container");
+    const title = headerContainer.createEl("h3", { text: "Projects" });
+    const addIcon = headerContainer.createSpan("add-project-icon");
+    const addSvg = createSVGElement(Icons.add);
+    addIcon.appendChild(addSvg);
+    headerContainer.addEventListener("click", (e) => {
+      if (e.target === addIcon || addIcon.contains(e.target)) {
+        e.stopPropagation();
+        this.projectManager.openAddProjectModal(file);
+      }
+    });
+    const projectsList = container.createDiv("projects-list");
+    this.addSectionDragEvents(projectsList, false);
+    projectCounts.forEach(({ project, count }) => {
+      this.projectItemRenderer.render(projectsList, project, count, filterState, file);
+    });
+  }
+};
+
 // src/managers/viewRenderer.ts
 var ViewRenderer = class {
   constructor(containerEl, taskManager, projectManager, filterManager) {
@@ -766,7 +1174,6 @@ var ViewRenderer = class {
     this.taskManager = taskManager;
     this.projectManager = projectManager;
     this.filterManager = filterManager;
-    this.projectsListEl = null;
     this.searchInputHasFocus = false;
     this.mobileSidebarOpen = false;
     // Event callbacks
@@ -782,6 +1189,10 @@ var ViewRenderer = class {
     };
     this.onSpecialFilterSelect = () => {
     };
+    this.onProjectReorder = () => {
+    };
+    this.onProjectTogglePin = () => {
+    };
     this.taskItemRenderer = new TaskItem(
       taskManager,
       projectManager,
@@ -794,6 +1205,15 @@ var ViewRenderer = class {
       (query) => this.onSearchChange(query),
       (sortOption) => this.onSortChange(sortOption),
       (context) => this.onContextFilterChange(context)
+    );
+    this.projectsSidebar = new ProjectsSidebar(
+      projectManager,
+      (project) => this.onProjectSelect(project),
+      (filter) => this.onTimeFilterSelect(filter),
+      (filter) => this.onSpecialFilterSelect(filter),
+      (projectName, newIndex, isPinned) => this.onProjectReorder(projectName, newIndex, isPinned),
+      (projectName, shouldPin) => this.onProjectTogglePin(projectName, shouldPin),
+      () => this.toggleMobileSidebar()
     );
   }
   // Render complete view layout
@@ -811,7 +1231,7 @@ var ViewRenderer = class {
     mobileOverlay.addEventListener("click", () => {
       this.toggleMobileSidebar();
     });
-    this.renderProjectsSidebar(mainLayout, allItems, filterState, pinnedProjects, allKnownProjects, file);
+    this.projectsSidebar.render(mainLayout, allItems, filterState, pinnedProjects, allKnownProjects, file, this.mobileSidebarOpen);
     const tasksMain = mainLayout.createDiv("tasks-main");
     this.renderTasksSection(tasksMain, filteredItems, filterState);
     requestAnimationFrame(() => {
@@ -841,128 +1261,6 @@ var ViewRenderer = class {
         overlay == null ? void 0 : overlay.removeClass("visible");
       }
     }
-  }
-  // Render left sidebar with filters and projects
-  renderProjectsSidebar(container, allItems, filterState, pinnedProjects, allKnownProjects, file) {
-    const sidebar = container.createDiv("projects-sidebar");
-    if (this.mobileSidebarOpen) {
-      sidebar.addClass("mobile-open");
-    }
-    const topSection = sidebar.createDiv("projects-top-section");
-    const filters = [
-      { id: "all", label: "All", count: TaskCounter.getAllTasksCount(allItems) },
-      { id: "today", label: "Today", count: TaskCounter.getTodayTasksCount(allItems) },
-      { id: "upcoming", label: "Upcoming", count: TaskCounter.getUpcomingTasksCount(allItems) },
-      { id: "inbox", label: "Inbox", count: TaskCounter.getInboxTasksCount(allItems) },
-      { id: "archived", label: "Archived", count: TaskCounter.getArchivedTasksCount(allItems) },
-      { id: "completed", label: "Completed", count: TaskCounter.getCompletedTasksCount(allItems) }
-    ];
-    filters.forEach((filter) => {
-      FilterItem.render(
-        topSection,
-        filter.id,
-        filter.label,
-        filter.count,
-        filterState,
-        () => {
-          this.handleFilterClick(filter.id);
-          if (window.innerWidth <= 768) {
-            this.toggleMobileSidebar();
-          }
-        }
-      );
-    });
-    const projectCounts = this.projectManager.getProjectCounts(allItems);
-    const pinnedProjectCounts = projectCounts.filter((p) => pinnedProjects.has(p.project));
-    const unpinnedProjectCounts = projectCounts.filter((p) => !pinnedProjects.has(p.project));
-    if (pinnedProjectCounts.length > 0) {
-      const pinnedHeaderContainer = sidebar.createDiv("pinned-header-container");
-      pinnedHeaderContainer.createEl("h3", { text: "Pinned" });
-      const pinnedList = sidebar.createDiv("projects-list pinned-projects-list");
-      pinnedProjectCounts.forEach(({ project, count }) => {
-        this.renderProjectItem(pinnedList, project, count, filterState, file);
-      });
-    }
-    this.renderProjectsSection(sidebar, unpinnedProjectCounts, filterState, file);
-  }
-  // Handle filter button clicks
-  handleFilterClick(filterId) {
-    switch (filterId) {
-      case "all":
-        this.onProjectSelect("");
-        this.onTimeFilterSelect("");
-        this.onSpecialFilterSelect("");
-        break;
-      case "today":
-      case "upcoming":
-        this.onTimeFilterSelect(filterId);
-        break;
-      case "inbox":
-        this.onProjectSelect("Inbox");
-        break;
-      case "archived":
-      case "completed":
-        this.onSpecialFilterSelect(filterId);
-        break;
-    }
-  }
-  // Render single project list item
-  renderProjectItem(container, project, count, filterState, file) {
-    const projectItem = container.createDiv("project-item");
-    if (filterState.selectedProject === project && !filterState.archivedFilter && !filterState.completedFilter) {
-      projectItem.addClass("selected");
-    }
-    const projectIcon = projectItem.createSpan("project-icon");
-    const icon = this.projectManager.getProjectIcon(project);
-    if (icon) {
-      if (icon.includes("<svg")) {
-        const svgElement = createSVGElement(icon);
-        projectIcon.appendChild(svgElement);
-      } else {
-        projectIcon.setText(icon);
-      }
-    } else {
-      const hashSvg = createSVGElement(Icons.hash);
-      projectIcon.appendChild(hashSvg);
-    }
-    const projectText = projectItem.createSpan("project-text");
-    projectText.setText(project.replace(/_/g, " "));
-    const projectCount = projectItem.createSpan("project-count");
-    projectCount.setText(count.toString());
-    const projectMenu = projectItem.createSpan("project-menu");
-    const dotsSvg = createSVGElement(Icons.threeDots);
-    projectMenu.appendChild(dotsSvg);
-    projectMenu.addClass("project-menu-dots");
-    projectItem.addEventListener("click", (e) => {
-      if (e.target === projectMenu || projectMenu.contains(e.target)) {
-        e.stopPropagation();
-        this.projectManager.showProjectMenu(e, project, file);
-      } else {
-        this.onProjectSelect(project);
-        if (window.innerWidth <= 768) {
-          this.toggleMobileSidebar();
-        }
-      }
-    });
-  }
-  // Render projects section with header
-  renderProjectsSection(container, projectCounts, filterState, file) {
-    const headerContainer = container.createDiv("projects-header-container");
-    const title = headerContainer.createEl("h3", { text: "Projects" });
-    const addIcon = headerContainer.createSpan("add-project-icon");
-    const addSvg = createSVGElement(Icons.add);
-    addIcon.appendChild(addSvg);
-    headerContainer.addEventListener("click", (e) => {
-      if (e.target === addIcon || addIcon.contains(e.target)) {
-        e.stopPropagation();
-        this.projectManager.openAddProjectModal(file);
-      }
-    });
-    const projectsList = container.createDiv("projects-list");
-    this.projectsListEl = projectsList;
-    projectCounts.forEach(({ project, count }) => {
-      this.renderProjectItem(projectsList, project, count, filterState, file);
-    });
   }
   // Render main tasks area
   renderTasksSection(container, filteredItems, filterState) {
@@ -2412,8 +2710,8 @@ var ProjectManager = class {
   constructor(plugin) {
     this.plugin = plugin;
     // Project data stores
-    this.pinnedProjects = /* @__PURE__ */ new Set();
-    this.allKnownProjects = /* @__PURE__ */ new Set();
+    this.pinnedProjects = [];
+    this.allKnownProjects = [];
     this.projectIcons = /* @__PURE__ */ new Map();
     // Callback handlers
     this.onProjectCreate = async () => {
@@ -2427,13 +2725,17 @@ var ProjectManager = class {
   }
   // Extract projects from todo items
   updateFromTodoItems(items) {
+    const newProjects = [];
     items.forEach((item) => {
       item.projects.forEach((project) => {
         if (project !== "Inbox" && project !== "Archived") {
-          this.allKnownProjects.add(project);
+          if (!this.allKnownProjects.includes(project) && !newProjects.includes(project)) {
+            newProjects.push(project);
+          }
         }
       });
     });
+    this.allKnownProjects.push(...newProjects);
   }
   // Count active tasks per project
   getProjectCounts(items) {
@@ -2452,13 +2754,58 @@ var ProjectManager = class {
     if (!projectCounts.has("Inbox")) {
       projectCounts.set("Inbox", 0);
     }
-    return Array.from(projectCounts.entries()).map(([project, count]) => ({ project, count })).filter(({ project }) => project !== "Inbox" && project !== "Archived").sort((a, b) => a.project.localeCompare(b.project));
+    const allProjectCounts = Array.from(projectCounts.entries()).map(([project, count]) => ({ project, count })).filter(({ project }) => project !== "Inbox" && project !== "Archived");
+    return allProjectCounts.sort((a, b) => {
+      const aIndex = this.allKnownProjects.indexOf(a.project);
+      const bIndex = this.allKnownProjects.indexOf(b.project);
+      if (aIndex === -1 && bIndex === -1) {
+        return a.project.localeCompare(b.project);
+      }
+      if (aIndex === -1)
+        return 1;
+      if (bIndex === -1)
+        return -1;
+      return aIndex - bIndex;
+    });
+  }
+  // Get ordered pinned projects
+  getOrderedPinnedProjects(projectCounts) {
+    const pinnedCounts = projectCounts.filter((p) => this.pinnedProjects.includes(p.project));
+    return pinnedCounts.sort((a, b) => {
+      const aIndex = this.pinnedProjects.indexOf(a.project);
+      const bIndex = this.pinnedProjects.indexOf(b.project);
+      if (aIndex === -1 && bIndex === -1) {
+        return a.project.localeCompare(b.project);
+      }
+      if (aIndex === -1)
+        return 1;
+      if (bIndex === -1)
+        return -1;
+      return aIndex - bIndex;
+    });
+  }
+  // Reorder project in array
+  reorderProject(projectName, targetIndex, isPinned) {
+    const array = isPinned ? this.pinnedProjects : this.allKnownProjects;
+    const sourceIndex = array.indexOf(projectName);
+    if (sourceIndex === -1 || sourceIndex === targetIndex)
+      return;
+    const [item] = array.splice(sourceIndex, 1);
+    let insertIndex = targetIndex;
+    if (sourceIndex < targetIndex) {
+      insertIndex = targetIndex - 1;
+    }
+    array.splice(insertIndex, 0, item);
+  }
+  // Remove duplicates from allKnownProjects
+  removeDuplicates() {
+    this.allKnownProjects = [...new Set(this.allKnownProjects)];
   }
   // Get all projects for dropdowns
   getAvailableProjects() {
-    const projects = new Set(this.allKnownProjects);
-    projects.add("Archived");
-    return Array.from(projects).sort();
+    const projects = [...this.allKnownProjects];
+    projects.push("Archived");
+    return projects.sort();
   }
   // Open modal to create project
   openAddProjectModal(file) {
@@ -2536,7 +2883,7 @@ var ProjectManager = class {
       this.editProject(projectName, file);
       menu.remove();
     });
-    const isPinned = this.pinnedProjects.has(projectName);
+    const isPinned = this.pinnedProjects.includes(projectName);
     const pinOption = menu.createEl("div", {
       text: isPinned ? "Unpin" : "Pin",
       cls: "project-context-menu-item"
@@ -2575,24 +2922,32 @@ var ProjectManager = class {
     );
     modal.open();
   }
-  // Update project name in sets
+  // Update project name in arrays
   async renameProject(oldName, newName, file) {
-    if (this.pinnedProjects.has(oldName)) {
-      this.pinnedProjects.delete(oldName);
-      this.pinnedProjects.add(newName);
+    const pinnedIndex = this.pinnedProjects.indexOf(oldName);
+    if (pinnedIndex !== -1) {
+      this.pinnedProjects[pinnedIndex] = newName;
       await this.savePinnedProjects(file);
     }
-    if (this.allKnownProjects.has(oldName)) {
-      this.allKnownProjects.delete(oldName);
-      this.allKnownProjects.add(newName);
+    const projectIndex = this.allKnownProjects.indexOf(oldName);
+    if (projectIndex !== -1) {
+      this.allKnownProjects[projectIndex] = newName;
+      this.removeDuplicates();
       await this.saveAllKnownProjects(file);
     }
   }
   // Remove project from all data
   async deleteProject(projectName, file) {
-    this.allKnownProjects.delete(projectName);
-    this.pinnedProjects.delete(projectName);
+    const allIndex = this.allKnownProjects.indexOf(projectName);
+    if (allIndex !== -1) {
+      this.allKnownProjects.splice(allIndex, 1);
+    }
+    const pinnedIndex = this.pinnedProjects.indexOf(projectName);
+    if (pinnedIndex !== -1) {
+      this.pinnedProjects.splice(pinnedIndex, 1);
+    }
     this.projectIcons.delete(projectName);
+    this.removeDuplicates();
     await this.saveAllKnownProjects(file);
     await this.savePinnedProjects(file);
     await this.saveProjectIcons(file);
@@ -2604,7 +2959,7 @@ var ProjectManager = class {
     if (!this.plugin.settings.pinnedProjects) {
       this.plugin.settings.pinnedProjects = {};
     }
-    this.plugin.settings.pinnedProjects[file.path] = Array.from(this.pinnedProjects);
+    this.plugin.settings.pinnedProjects[file.path] = [...this.pinnedProjects];
     await this.plugin.saveSettings();
   }
   // Load pinned projects from settings
@@ -2612,9 +2967,9 @@ var ProjectManager = class {
     if (!file)
       return;
     if (this.plugin.settings.pinnedProjects && this.plugin.settings.pinnedProjects[file.path]) {
-      this.pinnedProjects = new Set(this.plugin.settings.pinnedProjects[file.path]);
+      this.pinnedProjects = [...this.plugin.settings.pinnedProjects[file.path]];
     } else {
-      this.pinnedProjects = /* @__PURE__ */ new Set();
+      this.pinnedProjects = [];
     }
   }
   // Save all known projects to settings
@@ -2624,7 +2979,7 @@ var ProjectManager = class {
     if (!this.plugin.settings.allKnownProjects) {
       this.plugin.settings.allKnownProjects = {};
     }
-    this.plugin.settings.allKnownProjects[file.path] = Array.from(this.allKnownProjects);
+    this.plugin.settings.allKnownProjects[file.path] = [...this.allKnownProjects];
     await this.plugin.saveSettings();
   }
   // Load all known projects from settings
@@ -2632,9 +2987,9 @@ var ProjectManager = class {
     if (!file)
       return;
     if (this.plugin.settings.allKnownProjects && this.plugin.settings.allKnownProjects[file.path]) {
-      this.allKnownProjects = new Set(this.plugin.settings.allKnownProjects[file.path]);
+      this.allKnownProjects = [...this.plugin.settings.allKnownProjects[file.path]];
     } else {
-      this.allKnownProjects = /* @__PURE__ */ new Set();
+      this.allKnownProjects = [];
     }
   }
 };
@@ -2942,7 +3297,7 @@ var StateManager = class {
       completedFilter: state.completedFilter || false
     });
     if (state.pinnedProjects) {
-      projectManager.pinnedProjects = new Set(state.pinnedProjects);
+      projectManager.pinnedProjects = [...state.pinnedProjects || []];
     }
     if (state.file) {
       const file = view.app.vault.getAbstractFileByPath(state.file);
@@ -2961,7 +3316,7 @@ var StateManager = class {
   saveState(view) {
     const file = view.getFile();
     const filterState = view.getFilterManager().getState();
-    const pinnedProjects = Array.from(view.getProjectManager().pinnedProjects);
+    const pinnedProjects = [...view.getProjectManager().pinnedProjects];
     return {
       file: (file == null ? void 0 : file.path) || null,
       ...filterState,
@@ -3276,7 +3631,9 @@ var ProjectService = class {
   }
   // Create new empty project
   async createEmptyProject(file, projectName) {
-    this.projectManager.allKnownProjects.add(projectName);
+    if (!this.projectManager.allKnownProjects.includes(projectName)) {
+      this.projectManager.allKnownProjects.push(projectName);
+    }
     await this.projectManager.saveAllKnownProjects(file);
   }
   // Rename project everywhere
@@ -3294,9 +3651,14 @@ var ProjectService = class {
   // Pin or unpin project
   async toggleProjectPin(file, projectName, isPinned) {
     if (isPinned) {
-      this.projectManager.pinnedProjects.add(projectName);
+      if (!this.projectManager.pinnedProjects.includes(projectName)) {
+        this.projectManager.pinnedProjects.push(projectName);
+      }
     } else {
-      this.projectManager.pinnedProjects.delete(projectName);
+      const index = this.projectManager.pinnedProjects.indexOf(projectName);
+      if (index !== -1) {
+        this.projectManager.pinnedProjects.splice(index, 1);
+      }
     }
     await this.projectManager.savePinnedProjects(file);
   }
@@ -3401,6 +3763,18 @@ var TodoTxtView = class extends import_obsidian6.ItemView {
     };
     this.renderer.onSpecialFilterSelect = (filter) => {
       this.filterManager.setSpecialFilter(filter);
+    };
+    this.renderer.onProjectReorder = async (projectName, newIndex, isPinned) => {
+      this.projectManager.reorderProject(projectName, newIndex, isPinned);
+      if (isPinned) {
+        await this.projectManager.savePinnedProjects(this.file);
+      } else {
+        await this.projectManager.saveAllKnownProjects(this.file);
+      }
+      this.refresh();
+    };
+    this.renderer.onProjectTogglePin = async (projectName, shouldPin) => {
+      await this.projectManager.onProjectPin(projectName, shouldPin);
     };
   }
   getViewType() {
