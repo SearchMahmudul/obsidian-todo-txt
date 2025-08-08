@@ -11,7 +11,7 @@
 - **Multiple task files** - Any .txt file becomes a task list automatically
 - **Quick filters** - All, Today, Upcoming, Inbox, Archived, Completed
 - **Flexible sorting** - By priority, due date, creation date, alphabetical, projects, or contexts
-- **Project organization** - Custom icons, pinning, bulk operations
+- **Project organization** - Custom icons, pinning, drag & drop reordering, bulk operations
 - **Priority levels** - Visual priority indicators (A, B, C)
 - **Due dates** - Smart date recognition with status indicators
 - **Recurring tasks** - Flexible recurrence patterns
@@ -92,6 +92,8 @@ Support for flexible recurrence patterns:
 - **Create projects** - Click + next to "Projects"
 - **Add icons** - Emoji or SVG icons for visual organization
 - **Pin important** - Right-click → Pin for quick access
+- **Reorder projects** - Drag and drop to reorder projects in the sidebar
+- **Drag to pin/unpin** - Drag projects between main list and pinned sections
 - **Bulk actions** - Rename, delete, or archive entire projects
 
 ### Smart Filtering & Sorting
@@ -120,6 +122,7 @@ Support for flexible recurrence patterns:
 - Use contexts for energy levels: `@high-energy`, `@low-energy`
 - Combine filters: Search while in a project view to find specific tasks
 - Sort by due date to prioritize urgent tasks, or by project to batch similar work
+- Organize your sidebar by dragging projects to match your workflow priorities
 
 ## 🤝 Contributing
 
