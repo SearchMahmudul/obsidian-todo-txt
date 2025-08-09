@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-todo-txt",
-	"version": "1.0.0",
-	"description": "Todo.txt plugin for Obsidian",
+	"name": "todo-txt",
+	"version": "1.0.1",
+	"description": "Powerful yet simple task management in the portable Todo.txt format, with smart filtering and a modern interface.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
