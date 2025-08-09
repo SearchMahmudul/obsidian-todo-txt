@@ -44,7 +44,8 @@ export class TodoTxtView extends ItemView {
 			this.containerEl,
 			this.taskManager,
 			this.projectManager,
-			this.filterManager
+			this.filterManager,
+			this.plugin
 		);
 
 		this.setupEventHandlers();

@@ -7,6 +7,7 @@ import { TaskItem } from '../components/ui/taskItem';
 import { TaskControls } from '../components/ui/taskControls';
 import { ProjectsSidebar } from '../components/ui/projectsSidebar';
 import { TFile } from 'obsidian';
+import TodoTxtPlugin from '../main';
 
 export class ViewRenderer {
     // UI component renderers
@@ -30,8 +31,12 @@ export class ViewRenderer {
         private containerEl: HTMLElement,
         private taskManager: TaskManager,
         private projectManager: ProjectManager,
-        private filterManager: FilterManager
+        private filterManager: FilterManager,
+        private plugin: TodoTxtPlugin
     ) {
+        const isDesktop = window.innerWidth > 768;
+        this.sidebarOpen = isDesktop ? !this.plugin.settings.sidebarCollapsed : false;
+
         this.taskItemRenderer = new TaskItem(
             taskManager,
             projectManager,
@@ -58,7 +63,7 @@ export class ViewRenderer {
         );
 
         window.addEventListener('resize', () => {
-            const shouldBeOpen = window.innerWidth > 768;
+            const shouldBeOpen = window.innerWidth > 768 ? !this.plugin.settings.sidebarCollapsed : false;
             if (shouldBeOpen !== this.sidebarOpen) {
                 this.sidebarOpen = shouldBeOpen;
                 this.updateSidebarState();
@@ -84,6 +89,11 @@ export class ViewRenderer {
         this.containerEl.empty();
         const mainLayout = this.containerEl.createDiv('todo-txt-content');
 
+        // Apply sidebar state class immediately on render
+        if (!this.sidebarOpen) {
+            mainLayout.addClass('sidebar-collapsed');
+        }
+
         // Mobile overlay for sidebar
         const mobileOverlay = mainLayout.createDiv('mobile-sidebar-overlay');
         if (this.sidebarOpen) {
@@ -96,6 +106,12 @@ export class ViewRenderer {
         this.projectsSidebar.render(mainLayout, allItems, filterState, pinnedProjects, allKnownProjects, file, this.sidebarOpen);
 
         const tasksMain = mainLayout.createDiv('tasks-main');
+
+        // Apply sidebar state to tasks-main immediately
+        if (!this.sidebarOpen) {
+            tasksMain.addClass('sidebar-closed');
+        }
+
         this.renderTasksSection(tasksMain, filteredItems, filterState);
 
         // Restore scroll position
@@ -115,9 +131,15 @@ export class ViewRenderer {
     }
 
     // Toggle sidebar visibility
-    private toggleSidebar(): void {
+    private async toggleSidebar(): Promise<void> {
         this.sidebarOpen = !this.sidebarOpen;
         this.updateSidebarState();
+
+        // Save state only on desktop
+        if (window.innerWidth > 768) {
+            this.plugin.settings.sidebarCollapsed = !this.sidebarOpen;
+            await this.plugin.saveSettings();
+        }
     }
 
     // Update sidebar DOM state
@@ -125,12 +147,14 @@ export class ViewRenderer {
         const sidebar = this.containerEl.querySelector('.projects-sidebar');
         const mainContent = this.containerEl.querySelector('.tasks-main');
         const overlay = this.containerEl.querySelector('.mobile-sidebar-overlay');
+        const todoContent = this.containerEl.querySelector('.todo-txt-content');
 
         if (sidebar && mainContent) {
             if (this.sidebarOpen) {
                 sidebar.addClass('open');
                 sidebar.removeClass('closed');
                 mainContent.removeClass('sidebar-closed');
+                todoContent?.removeClass('sidebar-collapsed');
                 if (window.innerWidth <= 768) {
                     overlay?.addClass('visible');
                 }
@@ -138,6 +162,7 @@ export class ViewRenderer {
                 sidebar.addClass('closed');
                 sidebar.removeClass('open');
                 mainContent.addClass('sidebar-closed');
+                todoContent?.addClass('sidebar-collapsed');
                 overlay?.removeClass('visible');
             }
         }

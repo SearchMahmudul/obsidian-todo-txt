@@ -34,6 +34,7 @@ var import_obsidian7 = require("obsidian");
 var DEFAULT_SETTINGS = {
   todoFilePath: "Todo.txt",
   openOnStartup: false,
+  sidebarCollapsed: false,
   startupFilter: "All",
   pinnedProjects: {}
 };
@@ -1171,11 +1172,12 @@ var ProjectsSidebar = class {
 
 // src/managers/viewRenderer.ts
 var ViewRenderer = class {
-  constructor(containerEl, taskManager, projectManager, filterManager) {
+  constructor(containerEl, taskManager, projectManager, filterManager, plugin) {
     this.containerEl = containerEl;
     this.taskManager = taskManager;
     this.projectManager = projectManager;
     this.filterManager = filterManager;
+    this.plugin = plugin;
     this.searchInputHasFocus = false;
     this.sidebarOpen = window.innerWidth > 768;
     // Event callbacks
@@ -1195,6 +1197,8 @@ var ViewRenderer = class {
     };
     this.onProjectTogglePin = () => {
     };
+    const isDesktop = window.innerWidth > 768;
+    this.sidebarOpen = isDesktop ? !this.plugin.settings.sidebarCollapsed : false;
     this.taskItemRenderer = new TaskItem(
       taskManager,
       projectManager,
@@ -1218,7 +1222,7 @@ var ViewRenderer = class {
       () => this.toggleSidebar()
     );
     window.addEventListener("resize", () => {
-      const shouldBeOpen = window.innerWidth > 768;
+      const shouldBeOpen = window.innerWidth > 768 ? !this.plugin.settings.sidebarCollapsed : false;
       if (shouldBeOpen !== this.sidebarOpen) {
         this.sidebarOpen = shouldBeOpen;
         this.updateSidebarState();
@@ -1233,6 +1237,9 @@ var ViewRenderer = class {
     const scrollTop = ((_a = this.containerEl.querySelector(".projects-sidebar")) == null ? void 0 : _a.scrollTop) || 0;
     this.containerEl.empty();
     const mainLayout = this.containerEl.createDiv("todo-txt-content");
+    if (!this.sidebarOpen) {
+      mainLayout.addClass("sidebar-collapsed");
+    }
     const mobileOverlay = mainLayout.createDiv("mobile-sidebar-overlay");
     if (this.sidebarOpen) {
       mobileOverlay.addClass("visible");
@@ -1242,6 +1249,9 @@ var ViewRenderer = class {
     });
     this.projectsSidebar.render(mainLayout, allItems, filterState, pinnedProjects, allKnownProjects, file, this.sidebarOpen);
     const tasksMain = mainLayout.createDiv("tasks-main");
+    if (!this.sidebarOpen) {
+      tasksMain.addClass("sidebar-closed");
+    }
     this.renderTasksSection(tasksMain, filteredItems, filterState);
     requestAnimationFrame(() => {
       const sidebar = this.containerEl.querySelector(".projects-sidebar");
@@ -1257,20 +1267,26 @@ var ViewRenderer = class {
     }
   }
   // Toggle sidebar visibility
-  toggleSidebar() {
+  async toggleSidebar() {
     this.sidebarOpen = !this.sidebarOpen;
     this.updateSidebarState();
+    if (window.innerWidth > 768) {
+      this.plugin.settings.sidebarCollapsed = !this.sidebarOpen;
+      await this.plugin.saveSettings();
+    }
   }
   // Update sidebar DOM state
   updateSidebarState() {
     const sidebar = this.containerEl.querySelector(".projects-sidebar");
     const mainContent = this.containerEl.querySelector(".tasks-main");
     const overlay = this.containerEl.querySelector(".mobile-sidebar-overlay");
+    const todoContent = this.containerEl.querySelector(".todo-txt-content");
     if (sidebar && mainContent) {
       if (this.sidebarOpen) {
         sidebar.addClass("open");
         sidebar.removeClass("closed");
         mainContent.removeClass("sidebar-closed");
+        todoContent == null ? void 0 : todoContent.removeClass("sidebar-collapsed");
         if (window.innerWidth <= 768) {
           overlay == null ? void 0 : overlay.addClass("visible");
         }
@@ -1278,6 +1294,7 @@ var ViewRenderer = class {
         sidebar.addClass("closed");
         sidebar.removeClass("open");
         mainContent.addClass("sidebar-closed");
+        todoContent == null ? void 0 : todoContent.addClass("sidebar-collapsed");
         overlay == null ? void 0 : overlay.removeClass("visible");
       }
     }
@@ -3702,7 +3719,8 @@ var TodoTxtView = class extends import_obsidian6.ItemView {
       this.containerEl,
       this.taskManager,
       this.projectManager,
-      this.filterManager
+      this.filterManager,
+      this.plugin
     );
     this.setupEventHandlers();
     this.registerEvent(this.app.vault.on("modify", (file) => {

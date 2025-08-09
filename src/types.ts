@@ -2,6 +2,7 @@
 export interface TodoTxtSettings {
     todoFilePath: string;
     openOnStartup: boolean;
+    sidebarCollapsed?: boolean;
     startupFilter: string;
     pinnedProjects?: { [filePath: string]: string[] };
     allKnownProjects?: { [filePath: string]: string[] };
@@ -12,6 +13,7 @@ export interface TodoTxtSettings {
 export const DEFAULT_SETTINGS: TodoTxtSettings = {
     todoFilePath: 'Todo.txt',
     openOnStartup: false,
+    sidebarCollapsed: false,
     startupFilter: 'All',
     pinnedProjects: {}
 }
