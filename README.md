@@ -21,6 +21,7 @@
 ### 🚀 **Modern Interface**
 - **Mobile responsive** - Full functionality on all devices
 - **Theme compatible** - Works seamlessly with all Obsidian themes
+- **Flexible sidebar** - Collapsible project panel for more workspace
 - **Instant search** - Find tasks across all projects
 - **Smart suggestions** - Autocomplete for projects, contexts, and priorities
 - **Keyboard shortcuts** - Assign custom hotkeys to “Add task” and “Open task”
