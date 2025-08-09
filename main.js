@@ -1,5 +1,5 @@
 /**
-	Todo.txt v1.0.0
+	Todo.txt v1.0.1
 	@author Mahmudul
 	@url https://github.com/SearchMahmudul
 **/
@@ -1045,26 +1045,28 @@ var ProjectItem = class {
 
 // src/components/ui/projectsSidebar.ts
 var ProjectsSidebar = class {
-  constructor(projectManager, onProjectSelect, onTimeFilterSelect, onSpecialFilterSelect, onProjectReorder, onProjectTogglePin, toggleMobileSidebar) {
+  constructor(projectManager, onProjectSelect, onTimeFilterSelect, onSpecialFilterSelect, onProjectReorder, onProjectTogglePin, toggleSidebar) {
     this.projectManager = projectManager;
     this.onProjectSelect = onProjectSelect;
     this.onTimeFilterSelect = onTimeFilterSelect;
     this.onSpecialFilterSelect = onSpecialFilterSelect;
     this.onProjectReorder = onProjectReorder;
     this.onProjectTogglePin = onProjectTogglePin;
-    this.toggleMobileSidebar = toggleMobileSidebar;
+    this.toggleSidebar = toggleSidebar;
     this.projectItemRenderer = new ProjectItem(
       projectManager,
       onProjectSelect,
       onProjectReorder,
       onProjectTogglePin,
-      toggleMobileSidebar
+      toggleSidebar
     );
   }
-  render(container, allItems, filterState, pinnedProjects, allKnownProjects, file, mobileSidebarOpen) {
+  render(container, allItems, filterState, pinnedProjects, allKnownProjects, file, sidebarOpen) {
     const sidebar = container.createDiv("projects-sidebar");
-    if (mobileSidebarOpen) {
-      sidebar.addClass("mobile-open");
+    if (sidebarOpen) {
+      sidebar.addClass("open");
+    } else {
+      sidebar.addClass("closed");
     }
     const topSection = sidebar.createDiv("projects-top-section");
     const filters = [
@@ -1085,7 +1087,7 @@ var ProjectsSidebar = class {
         () => {
           this.handleFilterClick(filter.id);
           if (window.innerWidth <= 768) {
-            this.toggleMobileSidebar();
+            this.toggleSidebar();
           }
         }
       );
@@ -1175,7 +1177,7 @@ var ViewRenderer = class {
     this.projectManager = projectManager;
     this.filterManager = filterManager;
     this.searchInputHasFocus = false;
-    this.mobileSidebarOpen = false;
+    this.sidebarOpen = window.innerWidth > 768;
     // Event callbacks
     this.onProjectSelect = () => {
     };
@@ -1213,8 +1215,15 @@ var ViewRenderer = class {
       (filter) => this.onSpecialFilterSelect(filter),
       (projectName, newIndex, isPinned) => this.onProjectReorder(projectName, newIndex, isPinned),
       (projectName, shouldPin) => this.onProjectTogglePin(projectName, shouldPin),
-      () => this.toggleMobileSidebar()
+      () => this.toggleSidebar()
     );
+    window.addEventListener("resize", () => {
+      const shouldBeOpen = window.innerWidth > 768;
+      if (shouldBeOpen !== this.sidebarOpen) {
+        this.sidebarOpen = shouldBeOpen;
+        this.updateSidebarState();
+      }
+    });
   }
   // Render complete view layout
   render(filteredItems, allItems, filterState, pinnedProjects, allKnownProjects, file) {
@@ -1225,13 +1234,13 @@ var ViewRenderer = class {
     this.containerEl.empty();
     const mainLayout = this.containerEl.createDiv("todo-txt-content");
     const mobileOverlay = mainLayout.createDiv("mobile-sidebar-overlay");
-    if (this.mobileSidebarOpen) {
+    if (this.sidebarOpen) {
       mobileOverlay.addClass("visible");
     }
     mobileOverlay.addEventListener("click", () => {
-      this.toggleMobileSidebar();
+      this.toggleSidebar();
     });
-    this.projectsSidebar.render(mainLayout, allItems, filterState, pinnedProjects, allKnownProjects, file, this.mobileSidebarOpen);
+    this.projectsSidebar.render(mainLayout, allItems, filterState, pinnedProjects, allKnownProjects, file, this.sidebarOpen);
     const tasksMain = mainLayout.createDiv("tasks-main");
     this.renderTasksSection(tasksMain, filteredItems, filterState);
     requestAnimationFrame(() => {
@@ -1247,17 +1256,28 @@ var ViewRenderer = class {
       }
     }
   }
-  // Toggle mobile sidebar visibility
-  toggleMobileSidebar() {
-    this.mobileSidebarOpen = !this.mobileSidebarOpen;
+  // Toggle sidebar visibility
+  toggleSidebar() {
+    this.sidebarOpen = !this.sidebarOpen;
+    this.updateSidebarState();
+  }
+  // Update sidebar DOM state
+  updateSidebarState() {
     const sidebar = this.containerEl.querySelector(".projects-sidebar");
+    const mainContent = this.containerEl.querySelector(".tasks-main");
     const overlay = this.containerEl.querySelector(".mobile-sidebar-overlay");
-    if (sidebar) {
-      if (this.mobileSidebarOpen) {
-        sidebar.addClass("mobile-open");
-        overlay == null ? void 0 : overlay.addClass("visible");
+    if (sidebar && mainContent) {
+      if (this.sidebarOpen) {
+        sidebar.addClass("open");
+        sidebar.removeClass("closed");
+        mainContent.removeClass("sidebar-closed");
+        if (window.innerWidth <= 768) {
+          overlay == null ? void 0 : overlay.addClass("visible");
+        }
       } else {
-        sidebar.removeClass("mobile-open");
+        sidebar.addClass("closed");
+        sidebar.removeClass("open");
+        mainContent.addClass("sidebar-closed");
         overlay == null ? void 0 : overlay.removeClass("visible");
       }
     }
@@ -1267,11 +1287,11 @@ var ViewRenderer = class {
     const tasksSection = container.createDiv("todo-section");
     const stickyHeader = tasksSection.createDiv("todo-header-sticky");
     const headerContainer = stickyHeader.createDiv("header-title-container");
-    const mobileMenuBtn = headerContainer.createDiv("mobile-menu-btn");
+    const menuBtn = headerContainer.createDiv("menu-btn");
     const menuSvg = createSVGElement(Icons.menu);
-    mobileMenuBtn.appendChild(menuSvg);
-    mobileMenuBtn.addEventListener("click", () => {
-      this.toggleMobileSidebar();
+    menuBtn.appendChild(menuSvg);
+    menuBtn.addEventListener("click", () => {
+      this.toggleSidebar();
     });
     const headerText = this.getHeaderText(filterState);
     const headerEl = headerContainer.createEl("h2", {
