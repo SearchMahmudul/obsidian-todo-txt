@@ -28,6 +28,16 @@
     flex-direction: column;
 }
 
+@media (max-width: 768px) {
+    .todo-txt-view {
+        padding: 10px 15px;
+    }
+
+    .todo-txt-content {
+        gap: 0;
+    }
+}
+
 
 
 /***
@@ -210,12 +220,99 @@
     background-color: var(--background-modifier-hover);
 }
 
-/* Hide Sidebar Scrollbar */
+/* Hide Scrollbar */
 .projects-sidebar::-webkit-scrollbar {
     display: none !important;
 }
 
-/* Context Menu */
+/* Desktop Sidebar */
+@media (min-width: 769px) {
+    .projects-sidebar.closed {
+        width: 0;
+        padding: 0;
+        overflow: hidden;
+        opacity: 0;
+        transition: width 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+    }
+
+    .projects-sidebar.open {
+        transition: width 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+    }
+
+    .tasks-main.sidebar-closed {
+        margin-left: -20px;
+        transition: margin-left 0.3s ease;
+    }
+
+    .tasks-main:not(.sidebar-closed) {
+        transition: margin-left 0.3s ease;
+    }
+}
+
+/* Mobile Sidebar */
+@media (max-width: 768px) {
+    .projects-sidebar {
+        position: fixed;
+        left: -280px;
+        top: 0;
+        width: 280px;
+        height: 100vh;
+        z-index: 100;
+        background-color: var(--background-secondary);
+        border-radius: 0;
+        transition: left 0.3s ease;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .projects-sidebar.open {
+        left: 0;
+    }
+
+    .projects-sidebar.closed {
+        left: -280px;
+    }
+
+    .tasks-main {
+        width: 100%;
+    }
+
+    .tasks-main.sidebar-closed {
+        margin-left: 0;
+    }
+}
+
+/* Mobile Overlay */
+.mobile-sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 99;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+@media (max-width: 768px) {
+    .mobile-sidebar-overlay {
+        display: block;
+        pointer-events: none;
+    }
+
+    .mobile-sidebar-overlay.visible {
+        pointer-events: auto;
+        opacity: 1;
+    }
+}
+
+
+
+/***
+    Context Menu
+***/
+
 .project-context-menu {
     position: fixed;
     top: var(--menu-top, 0);
@@ -246,7 +343,12 @@
     background-color: color-mix(in srgb, var(--background-modifier-error) 10%, transparent);
 }
 
-/* Drag and Drop */
+
+
+/***
+    Drag and Drop
+***/
+
 .project-item.dragging {
     opacity: 0.5;
     z-index: 1000;
@@ -296,64 +398,6 @@
         background-color: color-mix(in srgb, var(--interactive-accent) 15%, transparent);
         z-index: 1000;
         transition: none;
-    }
-}
-
-/* Mobile Sidebar */
-@media (max-width: 768px) {
-    .todo-txt-view {
-        padding: 10px 15px;
-    }
-
-    .todo-txt-content {
-        gap: 0;
-    }
-
-    .projects-sidebar {
-        position: fixed;
-        left: -280px;
-        top: 0;
-        width: 280px;
-        height: 100vh;
-        z-index: 100;
-        background-color: var(--background-secondary);
-        border-radius: 0;
-        transition: left 0.3s ease;
-        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
-    }
-
-    .projects-sidebar.mobile-open {
-        left: 0;
-    }
-
-    .tasks-main {
-        width: 100%;
-    }
-}
-
-/* Mobile Overlay */
-.mobile-sidebar-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 99;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-@media (max-width: 768px) {
-    .mobile-sidebar-overlay {
-        display: block;
-        pointer-events: none;
-    }
-
-    .mobile-sidebar-overlay.visible {
-        pointer-events: auto;
-        opacity: 1;
     }
 }
 
@@ -422,9 +466,9 @@
     }
 }
 
-/* Mobile Menu Button */
-.mobile-menu-btn {
-    display: none;
+/* Menu Button */
+.menu-btn {
+    display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
@@ -434,20 +478,14 @@
     transition: all 0.2s ease;
 }
 
-.mobile-menu-btn:hover {
+.menu-btn:hover {
     color: var(--text-normal);
     background-color: var(--background-modifier-hover);
 }
 
-.mobile-menu-btn svg {
+.menu-btn svg {
     width: 22px;
     height: 22px;
-}
-
-@media (max-width: 768px) {
-    .mobile-menu-btn {
-        display: flex;
-    }
 }
 
 

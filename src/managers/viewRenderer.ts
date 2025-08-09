@@ -14,7 +14,7 @@ export class ViewRenderer {
     private taskControls: TaskControls;
     private projectsSidebar: ProjectsSidebar;
     private searchInputHasFocus: boolean = false;
-    private mobileSidebarOpen: boolean = false;
+    private sidebarOpen: boolean = window.innerWidth > 768;
 
     // Event callbacks
     public onProjectSelect: (project: string) => void = () => { };
@@ -54,8 +54,16 @@ export class ViewRenderer {
             (filter) => this.onSpecialFilterSelect(filter),
             (projectName, newIndex, isPinned) => this.onProjectReorder(projectName, newIndex, isPinned),
             (projectName, shouldPin) => this.onProjectTogglePin(projectName, shouldPin),
-            () => this.toggleMobileSidebar()
+            () => this.toggleSidebar()
         );
+
+        window.addEventListener('resize', () => {
+            const shouldBeOpen = window.innerWidth > 768;
+            if (shouldBeOpen !== this.sidebarOpen) {
+                this.sidebarOpen = shouldBeOpen;
+                this.updateSidebarState();
+            }
+        });
     }
 
     // Render complete view layout
@@ -78,14 +86,14 @@ export class ViewRenderer {
 
         // Mobile overlay for sidebar
         const mobileOverlay = mainLayout.createDiv('mobile-sidebar-overlay');
-        if (this.mobileSidebarOpen) {
+        if (this.sidebarOpen) {
             mobileOverlay.addClass('visible');
         }
         mobileOverlay.addEventListener('click', () => {
-            this.toggleMobileSidebar();
+            this.toggleSidebar();
         });
 
-        this.projectsSidebar.render(mainLayout, allItems, filterState, pinnedProjects, allKnownProjects, file, this.mobileSidebarOpen);
+        this.projectsSidebar.render(mainLayout, allItems, filterState, pinnedProjects, allKnownProjects, file, this.sidebarOpen);
 
         const tasksMain = mainLayout.createDiv('tasks-main');
         this.renderTasksSection(tasksMain, filteredItems, filterState);
@@ -106,18 +114,30 @@ export class ViewRenderer {
         }
     }
 
-    // Toggle mobile sidebar visibility
-    private toggleMobileSidebar(): void {
-        this.mobileSidebarOpen = !this.mobileSidebarOpen;
+    // Toggle sidebar visibility
+    private toggleSidebar(): void {
+        this.sidebarOpen = !this.sidebarOpen;
+        this.updateSidebarState();
+    }
+
+    // Update sidebar DOM state
+    private updateSidebarState(): void {
         const sidebar = this.containerEl.querySelector('.projects-sidebar');
+        const mainContent = this.containerEl.querySelector('.tasks-main');
         const overlay = this.containerEl.querySelector('.mobile-sidebar-overlay');
 
-        if (sidebar) {
-            if (this.mobileSidebarOpen) {
-                sidebar.addClass('mobile-open');
-                overlay?.addClass('visible');
+        if (sidebar && mainContent) {
+            if (this.sidebarOpen) {
+                sidebar.addClass('open');
+                sidebar.removeClass('closed');
+                mainContent.removeClass('sidebar-closed');
+                if (window.innerWidth <= 768) {
+                    overlay?.addClass('visible');
+                }
             } else {
-                sidebar.removeClass('mobile-open');
+                sidebar.addClass('closed');
+                sidebar.removeClass('open');
+                mainContent.addClass('sidebar-closed');
                 overlay?.removeClass('visible');
             }
         }
@@ -134,12 +154,12 @@ export class ViewRenderer {
 
         const headerContainer = stickyHeader.createDiv('header-title-container');
 
-        // Mobile menu button
-        const mobileMenuBtn = headerContainer.createDiv('mobile-menu-btn');
+        // Menu button
+        const menuBtn = headerContainer.createDiv('menu-btn');
         const menuSvg = createSVGElement(Icons.menu);
-        mobileMenuBtn.appendChild(menuSvg);
-        mobileMenuBtn.addEventListener('click', () => {
-            this.toggleMobileSidebar();
+        menuBtn.appendChild(menuSvg);
+        menuBtn.addEventListener('click', () => {
+            this.toggleSidebar();
         });
 
         // Header title

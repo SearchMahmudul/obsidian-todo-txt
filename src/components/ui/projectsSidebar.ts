@@ -17,14 +17,14 @@ export class ProjectsSidebar {
         private onSpecialFilterSelect: (filter: string) => void,
         private onProjectReorder: (projectName: string, newIndex: number, isPinned: boolean) => void,
         private onProjectTogglePin: (projectName: string, shouldPin: boolean) => void,
-        private toggleMobileSidebar: () => void
+        private toggleSidebar: () => void
     ) {
         this.projectItemRenderer = new ProjectItem(
             projectManager,
             onProjectSelect,
             onProjectReorder,
             onProjectTogglePin,
-            toggleMobileSidebar
+            toggleSidebar
         );
     }
 
@@ -35,11 +35,13 @@ export class ProjectsSidebar {
         pinnedProjects: string[],
         allKnownProjects: string[],
         file: TFile | null,
-        mobileSidebarOpen: boolean
+        sidebarOpen: boolean
     ): void {
         const sidebar = container.createDiv('projects-sidebar');
-        if (mobileSidebarOpen) {
-            sidebar.addClass('mobile-open');
+        if (sidebarOpen) {
+            sidebar.addClass('open');
+        } else {
+            sidebar.addClass('closed');
         }
 
         const topSection = sidebar.createDiv('projects-top-section');
@@ -64,7 +66,7 @@ export class ProjectsSidebar {
                 () => {
                     this.handleFilterClick(filter.id);
                     if (window.innerWidth <= 768) {
-                        this.toggleMobileSidebar();
+                        this.toggleSidebar();
                     }
                 }
             );
