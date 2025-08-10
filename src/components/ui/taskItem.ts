@@ -89,7 +89,7 @@ export class TaskItem {
 
         // Show projects inline if not mobile and no metadata
         if (!item.completed && !hasDueDate && !hasDescriptionNotes && !hasKeyValuePairs && item.projects.length > 0 && !isMobile) {
-            this.renderInlineProjects(descriptionLine, item.projects);
+            this.renderInlineProjects(descriptionLine, item.projects, item);
         }
 
         // Description notes section
@@ -99,7 +99,7 @@ export class TaskItem {
             this.renderFormattedDescriptionNotes(descriptionNotesEl, item.descriptionNotes || '');
 
             if (!item.completed && !hasDueDate && !hasKeyValuePairs && item.projects.length > 0 && !isMobile) {
-                this.renderInlineProjects(descriptionNotesLine, item.projects);
+                this.renderInlineProjects(descriptionNotesLine, item.projects, item);
             }
         }
 
@@ -191,16 +191,17 @@ export class TaskItem {
     }
 
     // Render projects inline with description
-    private renderInlineProjects(container: HTMLElement, projects: string[]): void {
+    private renderInlineProjects(container: HTMLElement, projects: string[], item: TodoItem): void {
         const inlineProjectsEl = container.createDiv('todo-projects-inline');
         projects.forEach(project => {
             const projectEl = inlineProjectsEl.createSpan('todo-project-meta');
 
+            const displayProject = this.getDisplayProject(project, item);
             const textSpan = projectEl.createSpan('todo-project-text');
-            textSpan.setText(project.replace(/_/g, ' '));
+            textSpan.setText(displayProject.replace(/_/g, ' '));
 
             const iconSpan = projectEl.createSpan('todo-project-icon');
-            const icon = this.getProjectIcon(project);
+            const icon = this.getProjectIcon(displayProject);
 
             if (icon.includes('<svg')) {
                 const svgElement = createSVGElement(icon);
@@ -222,6 +223,13 @@ export class TaskItem {
             const formattedDate = DateUtils.formatDate(item.completionDate);
             const completionDateEl = metaLeft.createSpan('todo-date completion-date');
             completionDateEl.setText(formattedDate);
+        }
+
+        // Show creation date for archived tasks
+        if (item.projects.includes('Archived') && !item.completed && item.creationDate) {
+            const formattedDate = DateUtils.formatDate(item.creationDate);
+            const creationDateEl = metaLeft.createSpan('todo-date creation-date');
+            creationDateEl.setText(formattedDate);
         }
 
         // Show due date with status
@@ -259,11 +267,12 @@ export class TaskItem {
             item.projects.forEach(project => {
                 const projectEl = projectsEl.createSpan('todo-project-meta');
 
+                const displayProject = this.getDisplayProject(project, item);
                 const textSpan = projectEl.createSpan('todo-project-text');
-                textSpan.setText(project.replace(/_/g, ' '));
+                textSpan.setText(displayProject.replace(/_/g, ' '));
 
                 const iconSpan = projectEl.createSpan('todo-project-icon');
-                const icon = this.getProjectIcon(project);
+                const icon = this.getProjectIcon(displayProject);
 
                 if (icon.includes('<svg')) {
                     const svgElement = createSVGElement(icon);
@@ -279,6 +288,7 @@ export class TaskItem {
             key !== 'pri' &&
             key !== 'due' &&
             key !== 'rec' &&
+            key !== 'origProj' &&
             key !== '||https' &&
             key !== '||http'
         );
@@ -309,5 +319,14 @@ export class TaskItem {
 
         const customIcon = this.projectManager.getProjectIcon(project);
         return customIcon || Icons.hash;
+    }
+
+    // Show original project for archived tasks
+    private getDisplayProject(project: string, item: TodoItem): string {
+        if (project === 'Archived' && item.keyValuePairs.origProj) {
+            const originalProjects = item.keyValuePairs.origProj.split(',');
+            return originalProjects[0];
+        }
+        return project;
     }
 }

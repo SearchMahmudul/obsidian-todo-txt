@@ -80,6 +80,7 @@ export class TaskDataHandler {
         // Remove remaining metadata
         description = description.replace(/\s*\+\w+/g, '');
         description = description.replace(/\s*due:\d{4}-\d{2}-\d{2}/g, '');
+        description = description.replace(/\s*origProj:\S+/g, '');
 
         return description.trim();
     }

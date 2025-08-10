@@ -56,8 +56,24 @@ export class TaskService {
         await this.fileService.updateTaskLine(file, item, taskLine);
     }
 
-    // Update task content
+    // Update task content and handle archiving
     async updateTask(file: TFile, originalItem: TodoItem, newTaskLine: string): Promise<void> {
+        // Check if task is being archived
+        const isBeingArchived = newTaskLine.includes('+Archived');
+        const wasArchived = originalItem.projects.includes('Archived');
+
+        if (isBeingArchived && !wasArchived) {
+            // Store original projects when archiving
+            const originalProjects = originalItem.projects.filter(p => p !== 'Archived');
+            if (originalProjects.length > 0) {
+                const origProjString = originalProjects.join(',');
+                // Add origProj tag if not already present
+                if (!newTaskLine.includes('origProj:')) {
+                    newTaskLine += ` origProj:${origProjString}`;
+                }
+            }
+        }
+
         await this.fileService.updateTaskLine(file, originalItem, newTaskLine);
     }
 
@@ -71,26 +87,58 @@ export class TaskService {
         await this.fileService.appendTaskLine(file, taskLine);
     }
 
-    // Move task from archived to inbox
+    // Move task from archived to original project
     async moveTaskFromArchivedToInbox(file: TFile, item: TodoItem): Promise<void> {
-        const updatedProjects = item.projects.filter(p => p !== 'Archived');
-        if (!updatedProjects.includes('Inbox')) {
-            updatedProjects.push('Inbox');
+        // Get original project from origProj tag
+        const origProjValue = item.keyValuePairs.origProj;
+        let targetProjects: string[] = [];
+
+        if (origProjValue) {
+            targetProjects = origProjValue.split(',');
+        } else {
+            targetProjects = ['Inbox'];
         }
 
-        // Rebuild task line with new projects
-        let newTaskLine = item.description.replace(/\s*\+\w+/g, '');
-        updatedProjects.forEach(project => {
+        // Remove origProj and projects from description
+        let cleanDescription = item.description
+            .replace(/\s*\+\w+/g, '')
+            .replace(/\s*origProj:\S+/g, '')
+            .trim();
+
+        // Rebuild task with priority and creation date
+        let newTaskLine = '';
+
+        // Add priority if exists
+        if (item.priority) {
+            newTaskLine += `(${item.priority}) `;
+        }
+
+        // Add creation date if exists
+        if (item.creationDate) {
+            newTaskLine += `${item.creationDate} `;
+        }
+
+        // Add cleaned description
+        newTaskLine += cleanDescription;
+
+        // Add target projects
+        targetProjects.forEach(project => {
             newTaskLine += ` +${project}`;
         });
+
+        // Add contexts
         item.contexts.forEach(context => {
             if (!newTaskLine.includes(`@${context}`)) {
                 newTaskLine += ` @${context}`;
             }
         });
+
+        // Restore key-value pairs except origProj
         Object.entries(item.keyValuePairs).forEach(([key, value]) => {
             if (key !== 'pri' || !item.completed) {
-                newTaskLine += ` ${key}:${value}`;
+                if (key !== 'origProj') {
+                    newTaskLine += ` ${key}:${value}`;
+                }
             }
         });
 
