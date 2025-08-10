@@ -327,14 +327,14 @@ var TaskItem = class {
     const descriptionEl = descriptionLine.createDiv("todo-description");
     this.renderFormattedDescription(descriptionEl, item);
     if (!item.completed && !hasDueDate && !hasDescriptionNotes && !hasKeyValuePairs && item.projects.length > 0 && !isMobile) {
-      this.renderInlineProjects(descriptionLine, item.projects);
+      this.renderInlineProjects(descriptionLine, item.projects, item);
     }
     if (hasDescriptionNotes) {
       const descriptionNotesLine = mainLine.createDiv("todo-description-notes-line");
       const descriptionNotesEl = descriptionNotesLine.createDiv("task-description-notes");
       this.renderFormattedDescriptionNotes(descriptionNotesEl, item.descriptionNotes || "");
       if (!item.completed && !hasDueDate && !hasKeyValuePairs && item.projects.length > 0 && !isMobile) {
-        this.renderInlineProjects(descriptionNotesLine, item.projects);
+        this.renderInlineProjects(descriptionNotesLine, item.projects, item);
       }
     }
     if (hasDueDate || hasKeyValuePairs || item.completionDate || item.completed && item.projects.length > 0 || isMobile && item.projects.length > 0) {
@@ -352,9 +352,9 @@ var TaskItem = class {
     parts.forEach((part) => {
       if (part.trim() === "") {
         container.appendChild(document.createTextNode(part));
-      } else if (part.startsWith("+")) {
+      } else if (part.startsWith("+") && part.match(/^\+\w+/)) {
         return;
-      } else if (part.startsWith("@")) {
+      } else if (part.startsWith("@") && part.match(/^@\w+/)) {
         const contextEl = container.createSpan("context-tag");
         contextEl.setText(part.substring(1));
       } else if (part.startsWith("#")) {
@@ -409,14 +409,15 @@ var TaskItem = class {
     });
   }
   // Render projects inline with description
-  renderInlineProjects(container, projects) {
+  renderInlineProjects(container, projects, item) {
     const inlineProjectsEl = container.createDiv("todo-projects-inline");
     projects.forEach((project) => {
       const projectEl = inlineProjectsEl.createSpan("todo-project-meta");
+      const displayProject = this.getDisplayProject(project, item);
       const textSpan = projectEl.createSpan("todo-project-text");
-      textSpan.setText(project.replace(/_/g, " "));
+      textSpan.setText(displayProject.replace(/_/g, " "));
       const iconSpan = projectEl.createSpan("todo-project-icon");
-      const icon = this.getProjectIcon(project);
+      const icon = this.getProjectIcon(displayProject);
       if (icon.includes("<svg")) {
         const svgElement = createSVGElement(icon);
         iconSpan.appendChild(svgElement);
@@ -434,6 +435,11 @@ var TaskItem = class {
       const formattedDate = DateUtils.formatDate(item.completionDate);
       const completionDateEl = metaLeft.createSpan("todo-date completion-date");
       completionDateEl.setText(formattedDate);
+    }
+    if (item.projects.includes("Archived") && !item.completed && item.creationDate) {
+      const formattedDate = DateUtils.formatDate(item.creationDate);
+      const creationDateEl = metaLeft.createSpan("todo-date creation-date");
+      creationDateEl.setText(formattedDate);
     }
     const dueMatch = item.description.match(/due:(\d{4}-\d{2}-\d{2})/);
     if (dueMatch && !item.completed) {
@@ -460,10 +466,11 @@ var TaskItem = class {
       const projectsEl = metaRight.createDiv("todo-projects-meta");
       item.projects.forEach((project) => {
         const projectEl = projectsEl.createSpan("todo-project-meta");
+        const displayProject = this.getDisplayProject(project, item);
         const textSpan = projectEl.createSpan("todo-project-text");
-        textSpan.setText(project.replace(/_/g, " "));
+        textSpan.setText(displayProject.replace(/_/g, " "));
         const iconSpan = projectEl.createSpan("todo-project-icon");
-        const icon = this.getProjectIcon(project);
+        const icon = this.getProjectIcon(displayProject);
         if (icon.includes("<svg")) {
           const svgElement = createSVGElement(icon);
           iconSpan.appendChild(svgElement);
@@ -473,7 +480,7 @@ var TaskItem = class {
       });
     }
     const kvPairs = Object.entries(item.keyValuePairs).filter(
-      ([key]) => key !== "pri" && key !== "due" && key !== "rec" && key !== "||https" && key !== "||http"
+      ([key]) => key !== "pri" && key !== "due" && key !== "rec" && key !== "origProj" && key !== "||https" && key !== "||http"
     );
     if (kvPairs.length > 0) {
       const kvEl = metaLeft.createDiv("todo-kv");
@@ -500,6 +507,14 @@ var TaskItem = class {
     }
     const customIcon = this.projectManager.getProjectIcon(project);
     return customIcon || Icons.hash;
+  }
+  // Show original project for archived tasks
+  getDisplayProject(project, item) {
+    if (project === "Archived" && item.keyValuePairs.origProj) {
+      const originalProjects = item.keyValuePairs.origProj.split(",");
+      return originalProjects[0];
+    }
+    return project;
   }
 };
 
@@ -1694,11 +1709,12 @@ var TaskDataHandler = class {
     }
     description = description.replace(/\s*\+\w+/g, "");
     description = description.replace(/\s*due:\d{4}-\d{2}-\d{2}/g, "");
+    description = description.replace(/\s*origProj:\S+/g, "");
     return description.trim();
   }
   // Extract priority from description text
   parsePriorityFromDescription() {
-    const priorityMatch = this.taskDescription.match(/^\(([A-Z])\)\s*(.*)$/);
+    const priorityMatch = this.taskDescription.match(/^KATEX_INLINE_OPEN([A-Z])KATEX_INLINE_CLOSE\s*(.*)$/);
     if (priorityMatch) {
       this.priority = priorityMatch[1];
       this.taskDescription = priorityMatch[2];
@@ -3661,8 +3677,19 @@ var TaskService = class {
     }
     await this.fileService.updateTaskLine(file, item, taskLine);
   }
-  // Update task content
+  // Update task content and handle archiving
   async updateTask(file, originalItem, newTaskLine) {
+    const isBeingArchived = newTaskLine.includes("+Archived");
+    const wasArchived = originalItem.projects.includes("Archived");
+    if (isBeingArchived && !wasArchived) {
+      const originalProjects = originalItem.projects.filter((p) => p !== "Archived");
+      if (originalProjects.length > 0) {
+        const origProjString = originalProjects.join(",");
+        if (!newTaskLine.includes("origProj:")) {
+          newTaskLine += ` origProj:${origProjString}`;
+        }
+      }
+    }
     await this.fileService.updateTaskLine(file, originalItem, newTaskLine);
   }
   // Remove task
@@ -3673,14 +3700,25 @@ var TaskService = class {
   async addNewTask(file, taskLine) {
     await this.fileService.appendTaskLine(file, taskLine);
   }
-  // Move task from archived to inbox
+  // Move task from archived to original project
   async moveTaskFromArchivedToInbox(file, item) {
-    const updatedProjects = item.projects.filter((p) => p !== "Archived");
-    if (!updatedProjects.includes("Inbox")) {
-      updatedProjects.push("Inbox");
+    const origProjValue = item.keyValuePairs.origProj;
+    let targetProjects = [];
+    if (origProjValue) {
+      targetProjects = origProjValue.split(",");
+    } else {
+      targetProjects = ["Inbox"];
     }
-    let newTaskLine = item.description.replace(/\s*\+\w+/g, "");
-    updatedProjects.forEach((project) => {
+    let cleanDescription = item.description.replace(/\s*\+\w+/g, "").replace(/\s*origProj:\S+/g, "").trim();
+    let newTaskLine = "";
+    if (item.priority) {
+      newTaskLine += `(${item.priority}) `;
+    }
+    if (item.creationDate) {
+      newTaskLine += `${item.creationDate} `;
+    }
+    newTaskLine += cleanDescription;
+    targetProjects.forEach((project) => {
       newTaskLine += ` +${project}`;
     });
     item.contexts.forEach((context) => {
@@ -3690,7 +3728,9 @@ var TaskService = class {
     });
     Object.entries(item.keyValuePairs).forEach(([key, value]) => {
       if (key !== "pri" || !item.completed) {
-        newTaskLine += ` ${key}:${value}`;
+        if (key !== "origProj") {
+          newTaskLine += ` ${key}:${value}`;
+        }
       }
     });
     await this.fileService.updateTaskLine(file, item, newTaskLine);
