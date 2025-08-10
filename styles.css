@@ -790,12 +790,14 @@
     background-color: var(--background-modifier-hover);
 }
 
-.todo-item.completed {
+.todo-item.completed,
+.todo-item.archived {
     opacity: 0.7;
     cursor: default;
 }
 
-.todo-item.completed:hover {
+.todo-item.completed:hover,
+.todo-item.archived:hover {
     background-color: var(--background-modifier-hover);
 }
 
@@ -808,12 +810,14 @@
 @media (max-width: 768px) {
 
     .todo-item:hover,
-    .todo-item.completed:hover {
+    .todo-item.completed:hover,
+    .todo-item.archived:hover {
         background-color: var(--background-primary-alt);
     }
 
     .todo-item:active,
-    .todo-item.completed:active {
+    .todo-item.completed:active,
+    .todo-item.archived:active {
         background-color: var(--background-modifier-hover);
     }
 }

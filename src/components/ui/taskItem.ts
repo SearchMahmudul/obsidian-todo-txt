@@ -15,8 +15,10 @@ export class TaskItem {
     // Render complete task item
     render(container: HTMLElement, item: TodoItem): void {
         const todoEl = container.createDiv('todo-item');
-        if (item.completed || item.projects.includes('Archived')) {
+        if (item.completed) {
             todoEl.addClass('completed');
+        } else if (item.projects.includes('Archived')) {
+            todoEl.addClass('archived');
         }
 
         this.renderCheckbox(todoEl, item);
@@ -35,11 +37,17 @@ export class TaskItem {
         });
     }
 
-    // Render completion checkbox
     private renderCheckbox(container: HTMLElement, item: TodoItem): void {
         const checkbox = container.createEl('input', { type: 'checkbox' });
         checkbox.checked = item.completed || item.projects.includes('Archived');
         checkbox.addClass('todo-checkbox');
+
+        // Apply different styling for completed vs archived
+        if (item.completed) {
+            checkbox.addClass('todo-checkbox-completed');
+        } else if (item.projects.includes('Archived')) {
+            checkbox.addClass('todo-checkbox-archived');
+        }
 
         // Apply priority styling
         const priorityForDisplay = this.getPriorityForDisplay(item);
@@ -82,13 +90,17 @@ export class TaskItem {
         // Check if we're on mobile
         const isMobile = window.innerWidth <= 768;
 
+        // Check task type for conditional rendering
+        const isCompleted = item.completed;
+        const isArchived = item.projects.includes('Archived');
+
         // Main description line
         const descriptionLine = mainLine.createDiv('todo-description-line');
         const descriptionEl = descriptionLine.createDiv('todo-description');
         this.renderFormattedDescription(descriptionEl, item);
 
-        // Show projects inline if not mobile and no metadata
-        if (!item.completed && !hasDueDate && !hasDescriptionNotes && !hasKeyValuePairs && item.projects.length > 0 && !isMobile) {
+        // Show projects inline if not completed/archived, not mobile and no metadata
+        if (!isCompleted && !isArchived && !hasDueDate && !hasDescriptionNotes && !hasKeyValuePairs && item.projects.length > 0 && !isMobile) {
             this.renderInlineProjects(descriptionLine, item.projects, item);
         }
 
@@ -98,14 +110,14 @@ export class TaskItem {
             const descriptionNotesEl = descriptionNotesLine.createDiv('task-description-notes');
             this.renderFormattedDescriptionNotes(descriptionNotesEl, item.descriptionNotes || '');
 
-            if (!item.completed && !hasDueDate && !hasKeyValuePairs && item.projects.length > 0 && !isMobile) {
+            if (!isCompleted && !isArchived && !hasDueDate && !hasKeyValuePairs && item.projects.length > 0 && !isMobile) {
                 this.renderInlineProjects(descriptionNotesLine, item.projects, item);
             }
         }
 
         // Metadata section
-        if (hasDueDate || hasKeyValuePairs || item.completionDate || (item.completed && item.projects.length > 0) || (isMobile && item.projects.length > 0)) {
-            const shouldRenderProjectsInMeta = item.completed || hasDueDate || hasKeyValuePairs || isMobile;
+        if (hasDueDate || hasKeyValuePairs || item.completionDate || (isCompleted && item.projects.length > 0) || (isArchived && item.projects.length > 0) || (isMobile && item.projects.length > 0)) {
+            const shouldRenderProjectsInMeta = isCompleted || isArchived || hasDueDate || hasKeyValuePairs || isMobile;
             this.renderMetadata(contentEl, item, shouldRenderProjectsInMeta);
         }
     }
@@ -114,8 +126,8 @@ export class TaskItem {
     private renderFormattedDescription(container: HTMLElement, item: TodoItem): void {
         let displayDescription = item.description;
 
-        // Hide priority for completed tasks
-        if (item.completed) {
+        // Hide priority for completed and archived tasks
+        if (item.completed || item.projects.includes('Archived')) {
             displayDescription = displayDescription.replace(/\s+pri:[A-Z]\b/g, '').trim();
         }
 
