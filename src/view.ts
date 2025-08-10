@@ -172,7 +172,7 @@ export class TodoTxtView extends ItemView {
 	}
 
 	getIcon(): string {
-		return 'checklist';
+		return 'circle-check-big';
 	}
 
 	// Initialize view container

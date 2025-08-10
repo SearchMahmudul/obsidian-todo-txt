@@ -40,7 +40,8 @@ export class ViewRenderer {
         this.taskItemRenderer = new TaskItem(
             taskManager,
             projectManager,
-            (tag) => this.searchForTag(tag)
+            filterManager,
+            (tag: string) => this.searchForTag(tag)
         );
 
         this.taskControls = new TaskControls(

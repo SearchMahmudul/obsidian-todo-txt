@@ -98,6 +98,28 @@ export class SuggestionHandler {
 
         document.body.appendChild(this.suggestions);
 
+        // Check for viewport overflow and adjust position
+        const suggestionRect = this.suggestions.getBoundingClientRect();
+        let finalTop = rect.top + cursorCoords.top + cursorCoords.height + 5;
+        let finalLeft = rect.left + cursorCoords.left;
+
+        // Check right overflow
+        if (finalLeft + suggestionRect.width > window.innerWidth) {
+            finalLeft = rect.left + cursorCoords.left - suggestionRect.width;
+        }
+
+        // Check bottom overflow
+        if (finalTop + suggestionRect.height > window.innerHeight) {
+            finalTop = rect.top + cursorCoords.top - suggestionRect.height - 5;
+        }
+
+        // Update position if adjusted
+        if (finalTop !== rect.top + cursorCoords.top + cursorCoords.height + 5 ||
+            finalLeft !== rect.left + cursorCoords.left) {
+            this.suggestions.style.setProperty('--suggestion-top', `${finalTop}px`);
+            this.suggestions.style.setProperty('--suggestion-left', `${finalLeft}px`);
+        }
+
         // Select first item
         this.selectedSuggestionIndex = 0;
         this.updateSuggestionSelection();

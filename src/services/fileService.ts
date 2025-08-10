@@ -35,8 +35,30 @@ export class FileService {
     // Add new task line to file
     async appendTaskLine(file: TFile, taskLine: string): Promise<void> {
         const currentContent = await this.readFile(file);
-        const newContent = currentContent ? `${currentContent}\n${taskLine}` : taskLine;
+
+        if (!currentContent.trim()) {
+            await this.writeFile(file, taskLine);
+            return;
+        }
+
+        const lines = currentContent.split('\n');
+        const lastLine = lines[lines.length - 1].trim();
+
+        // Extract dates from both lines
+        const lastDate = this.extractCreationDate(lastLine);
+        const newDate = this.extractCreationDate(taskLine);
+
+        // Add line break if different dates
+        const separator = (lastDate && newDate && lastDate !== newDate) ? '\n\n' : '\n';
+        const newContent = `${currentContent}${separator}${taskLine}`;
+
         await this.writeFile(file, newContent);
+    }
+
+    // Extract date from task line
+    private extractCreationDate(taskLine: string): string | null {
+        const match = taskLine.match(/^(?:KATEX_INLINE_OPEN[A-Z]KATEX_INLINE_CLOSE\s+)?(\d{4}-\d{2}-\d{2})/);
+        return match ? match[1] : null;
     }
 
     // Rename project in all tasks

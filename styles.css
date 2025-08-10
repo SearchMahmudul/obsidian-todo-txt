@@ -264,6 +264,10 @@
         box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
     }
 
+    .projects-sidebar .projects-list:last-child {
+        padding-bottom: 45px;
+    }
+
     .projects-sidebar.open {
         left: 0;
     }
@@ -801,6 +805,19 @@
     padding: 40px 20px;
 }
 
+@media (max-width: 768px) {
+
+    .todo-item:hover,
+    .todo-item.completed:hover {
+        background-color: var(--background-primary-alt);
+    }
+
+    .todo-item:active,
+    .todo-item.completed:active {
+        background-color: var(--background-modifier-hover);
+    }
+}
+
 
 
 /***
@@ -1098,6 +1115,7 @@
     overflow-y: auto;
     color: var(--text-normal);
     background-color: var(--background-primary);
+    box-shadow: none !important;
 }
 
 .todo-task-mod .task-input-field {
@@ -1149,6 +1167,13 @@
     border-radius: 5px;
     box-shadow: none !important;
     background: var(--background-primary) !important;
+    user-select: none;
+    transition: border-color 0.1s ease;
+}
+
+.todo-task-mod .modal-dropdown:hover,
+.todo-task-mod .modal-date-picker:hover {
+    border-color: color-mix(in srgb, var(--text-normal) 20%, transparent);
 }
 
 .todo-task-mod .modal-dropdown {

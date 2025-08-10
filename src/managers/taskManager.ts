@@ -37,9 +37,7 @@ export class TaskManager {
     }
 
     // Open task edit modal
-    editTask(item: TodoItem, availableProjects: string[]): void {
-        const availableContexts = this.getAvailableContexts();
-
+    editTask(item: TodoItem, availableProjects: string[], availableContexts: string[]): void {
         const modal = new AddTaskModal(
             this.app,
             async (taskLine: string) => {
@@ -83,15 +81,6 @@ export class TaskManager {
             defaultDueDate
         );
         modal.open();
-    }
-
-    // Extract contexts from items
-    private getAvailableContexts(): string[] {
-        const contexts = new Set<string>();
-        this.todoItems.forEach(item => {
-            item.contexts.forEach(context => contexts.add(context));
-        });
-        return Array.from(contexts).sort();
     }
 
     // Open bulk delete modal

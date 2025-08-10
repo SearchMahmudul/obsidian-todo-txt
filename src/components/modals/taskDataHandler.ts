@@ -95,13 +95,29 @@ export class TaskDataHandler {
 
     // Build final task line string
     buildTaskLine(): string {
-        if (!this.taskDescription.trim()) {
+        const trimmedDescription = this.taskDescription.trim();
+        if (!trimmedDescription) {
+            return '';
+        }
+
+        // Check if description has only metadata
+        let contentCheck = trimmedDescription;
+        contentCheck = contentCheck.replace(/\s*\+\w+/g, ''); // Remove project tags
+        contentCheck = contentCheck.replace(/\s*@\w+/g, ''); // Remove context tags
+        contentCheck = contentCheck.replace(/\s*due:\d{4}-\d{2}-\d{2}/g, ''); // Remove due dates
+        contentCheck = contentCheck.replace(/\s*rec:\S+/g, ''); // Remove recurrence
+        contentCheck = contentCheck.replace(/\s*\w+:\S+/g, ''); // Remove key:value pairs
+        contentCheck = contentCheck.replace(/^\s*KATEX_INLINE_OPEN[A-Z]KATEX_INLINE_CLOSE\s*/, ''); // Remove priority
+        contentCheck = contentCheck.replace(/\s*[+@!/*]/g, ''); // Remove standalone symbols
+        contentCheck = contentCheck.replace(/\s*\w+:\s*/g, ''); // Remove incomplete key: patterns
+
+        if (!contentCheck.trim()) {
             return '';
         }
 
         let taskLine = '';
 
-        // Add completion marker if editing completed task
+        // Mark edited completed tasks
         if (this.editingItem?.completed) {
             const completionMatch = this.editingItem.raw.match(/^x\s+(\d{4}-\d{2}-\d{2})/);
             if (completionMatch) {
@@ -117,7 +133,7 @@ export class TaskDataHandler {
             taskLine += `(${this.priority}) `;
         }
 
-        // Add creation date for new tasks
+        // Set or keep creation date
         if (!this.editingItem?.completed) {
             if (!this.isEditMode) {
                 const today = new Date().toISOString().split('T')[0];
@@ -127,10 +143,10 @@ export class TaskDataHandler {
             }
         }
 
-        // Add description
+        // Add task description
         taskLine += this.taskDescription.trim();
 
-        // Add project if not in description
+        // Add project if not specified
         const hasManualProject = /\+\w+/.test(this.taskDescription);
         if (!hasManualProject && this.selectedProject) {
             taskLine += ` +${this.selectedProject}`;
@@ -143,12 +159,11 @@ export class TaskDataHandler {
         if (this.dueDate && !this.taskDescription.includes(`due:${this.dueDate}`)) {
             taskLine += ` due:${this.dueDate}`;
         } else if (hasRecurrence && !this.dueDate && !hasDueInDescription) {
-            // Add today as due date for new recurring tasks
             const today = new Date().toISOString().split('T')[0];
             taskLine += ` due:${today}`;
         }
 
-        // Add notes
+        // Add notes if present
         if (this.taskDescriptionNotes) {
             const escapedNotes = this.taskDescriptionNotes.replace(/\n/g, '\\n');
             taskLine += ` ||${escapedNotes}`;

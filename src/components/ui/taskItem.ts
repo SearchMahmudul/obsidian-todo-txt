@@ -8,6 +8,7 @@ export class TaskItem {
     constructor(
         private taskManager: TaskManager,
         private projectManager: ProjectManager,
+        private filterManager: any,
         private onSearchTag: (tag: string) => void
     ) { }
 
@@ -25,7 +26,11 @@ export class TaskItem {
         todoEl.addEventListener('click', (e) => {
             const target = e.target as HTMLElement;
             if (!target.classList.contains('todo-checkbox')) {
-                this.taskManager.editTask(item, this.projectManager.getAvailableProjects());
+                this.taskManager.editTask(
+                    item,
+                    this.projectManager.getAvailableProjects(),
+                    this.filterManager.getAvailableContexts()
+                );
             }
         });
     }
@@ -135,12 +140,17 @@ export class TaskItem {
                     this.onSearchTag(part);
                 });
             } else if (part.includes(':') && !part.includes(' ') && !part.startsWith('http')) {
-                const [key] = part.split(':', 2);
+                const [key, value] = part.split(':', 2);
                 if (key === 'rec') {
                     return;
                 }
-                // Skip other key:value pairs
-                return;
+                // Skip only if valid key:value pair
+                if (value && value.trim()) {
+                    return;
+                } else {
+                    // Treat as text if no value after colon
+                    container.appendChild(document.createTextNode(part));
+                }
             } else if (part.match(/https?:\/\/[^\s]+/)) {
                 // Render clickable link
                 const linkEl = container.createEl('a', {

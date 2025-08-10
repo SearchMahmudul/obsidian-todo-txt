@@ -261,9 +261,10 @@ function getRepeatSyntax(option) {
 
 // src/components/ui/taskItem.ts
 var TaskItem = class {
-  constructor(taskManager, projectManager, onSearchTag) {
+  constructor(taskManager, projectManager, filterManager, onSearchTag) {
     this.taskManager = taskManager;
     this.projectManager = projectManager;
+    this.filterManager = filterManager;
     this.onSearchTag = onSearchTag;
   }
   // Render complete task item
@@ -277,7 +278,11 @@ var TaskItem = class {
     todoEl.addEventListener("click", (e) => {
       const target = e.target;
       if (!target.classList.contains("todo-checkbox")) {
-        this.taskManager.editTask(item, this.projectManager.getAvailableProjects());
+        this.taskManager.editTask(
+          item,
+          this.projectManager.getAvailableProjects(),
+          this.filterManager.getAvailableContexts()
+        );
       }
     });
   }
@@ -360,11 +365,15 @@ var TaskItem = class {
           this.onSearchTag(part);
         });
       } else if (part.includes(":") && !part.includes(" ") && !part.startsWith("http")) {
-        const [key] = part.split(":", 2);
+        const [key, value] = part.split(":", 2);
         if (key === "rec") {
           return;
         }
-        return;
+        if (value && value.trim()) {
+          return;
+        } else {
+          container.appendChild(document.createTextNode(part));
+        }
       } else if (part.match(/https?:\/\/[^\s]+/)) {
         const linkEl = container.createEl("a", {
           href: part,
@@ -1202,6 +1211,7 @@ var ViewRenderer = class {
     this.taskItemRenderer = new TaskItem(
       taskManager,
       projectManager,
+      filterManager,
       (tag) => this.searchForTag(tag)
     );
     this.taskControls = new TaskControls(
@@ -1697,7 +1707,20 @@ var TaskDataHandler = class {
   // Build final task line string
   buildTaskLine() {
     var _a, _b, _c;
-    if (!this.taskDescription.trim()) {
+    const trimmedDescription = this.taskDescription.trim();
+    if (!trimmedDescription) {
+      return "";
+    }
+    let contentCheck = trimmedDescription;
+    contentCheck = contentCheck.replace(/\s*\+\w+/g, "");
+    contentCheck = contentCheck.replace(/\s*@\w+/g, "");
+    contentCheck = contentCheck.replace(/\s*due:\d{4}-\d{2}-\d{2}/g, "");
+    contentCheck = contentCheck.replace(/\s*rec:\S+/g, "");
+    contentCheck = contentCheck.replace(/\s*\w+:\S+/g, "");
+    contentCheck = contentCheck.replace(/^\s*KATEX_INLINE_OPEN[A-Z]KATEX_INLINE_CLOSE\s*/, "");
+    contentCheck = contentCheck.replace(/\s*[+@!/*]/g, "");
+    contentCheck = contentCheck.replace(/\s*\w+:\s*/g, "");
+    if (!contentCheck.trim()) {
       return "";
     }
     let taskLine = "";
@@ -1808,6 +1831,19 @@ var SuggestionHandler = class {
       this.suggestions.appendChild(suggestionEl);
     });
     document.body.appendChild(this.suggestions);
+    const suggestionRect = this.suggestions.getBoundingClientRect();
+    let finalTop = rect.top + cursorCoords.top + cursorCoords.height + 5;
+    let finalLeft = rect.left + cursorCoords.left;
+    if (finalLeft + suggestionRect.width > window.innerWidth) {
+      finalLeft = rect.left + cursorCoords.left - suggestionRect.width;
+    }
+    if (finalTop + suggestionRect.height > window.innerHeight) {
+      finalTop = rect.top + cursorCoords.top - suggestionRect.height - 5;
+    }
+    if (finalTop !== rect.top + cursorCoords.top + cursorCoords.height + 5 || finalLeft !== rect.left + cursorCoords.left) {
+      this.suggestions.style.setProperty("--suggestion-top", `${finalTop}px`);
+      this.suggestions.style.setProperty("--suggestion-left", `${finalLeft}px`);
+    }
     this.selectedSuggestionIndex = 0;
     this.updateSuggestionSelection();
   }
@@ -2563,8 +2599,7 @@ var TaskManager = class {
     await this.onMoveFromArchived(item);
   }
   // Open task edit modal
-  editTask(item, availableProjects) {
-    const availableContexts = this.getAvailableContexts();
+  editTask(item, availableProjects, availableContexts) {
     const modal = new AddTaskModal(
       this.app,
       async (taskLine) => {
@@ -2601,14 +2636,6 @@ var TaskManager = class {
       defaultDueDate
     );
     modal.open();
-  }
-  // Extract contexts from items
-  getAvailableContexts() {
-    const contexts = /* @__PURE__ */ new Set();
-    this.todoItems.forEach((item) => {
-      item.contexts.forEach((context) => contexts.add(context));
-    });
-    return Array.from(contexts).sort();
   }
   // Open bulk delete modal
   openEmptyCompletedTasksModal() {
@@ -2910,8 +2937,6 @@ var ProjectManager = class {
     }
     const menu = document.createElement("div");
     menu.className = "project-context-menu";
-    menu.style.setProperty("--menu-left", `${event.clientX}px`);
-    menu.style.setProperty("--menu-top", `${event.clientY}px`);
     const editOption = menu.createEl("div", {
       text: "Edit",
       cls: "project-context-menu-item"
@@ -2938,6 +2963,19 @@ var ProjectManager = class {
       menu.remove();
     });
     document.body.appendChild(menu);
+    menu.style.setProperty("--menu-left", `${event.clientX}px`);
+    menu.style.setProperty("--menu-top", `${event.clientY}px`);
+    const menuRect = menu.getBoundingClientRect();
+    let menuTop = event.clientY;
+    let menuLeft = event.clientX;
+    if (menuTop + menuRect.height > window.innerHeight) {
+      menuTop = event.clientY - menuRect.height;
+    }
+    if (menuLeft + menuRect.width > window.innerWidth) {
+      menuLeft = event.clientX - menuRect.width;
+    }
+    menu.style.setProperty("--menu-left", `${menuLeft}px`);
+    menu.style.setProperty("--menu-top", `${menuTop}px`);
     const closeMenu = (e) => {
       if (!menu.contains(e.target)) {
         menu.remove();
@@ -3394,9 +3432,22 @@ var FileService = class {
   // Add new task line to file
   async appendTaskLine(file, taskLine) {
     const currentContent = await this.readFile(file);
-    const newContent = currentContent ? `${currentContent}
-${taskLine}` : taskLine;
+    if (!currentContent.trim()) {
+      await this.writeFile(file, taskLine);
+      return;
+    }
+    const lines = currentContent.split("\n");
+    const lastLine = lines[lines.length - 1].trim();
+    const lastDate = this.extractCreationDate(lastLine);
+    const newDate = this.extractCreationDate(taskLine);
+    const separator = lastDate && newDate && lastDate !== newDate ? "\n\n" : "\n";
+    const newContent = `${currentContent}${separator}${taskLine}`;
     await this.writeFile(file, newContent);
+  }
+  // Extract date from task line
+  extractCreationDate(taskLine) {
+    const match = taskLine.match(/^(?:KATEX_INLINE_OPEN[A-Z]KATEX_INLINE_CLOSE\s+)?(\d{4}-\d{2}-\d{2})/);
+    return match ? match[1] : null;
   }
   // Rename project in all tasks
   async replaceProjectName(file, oldName, newName) {
@@ -3823,7 +3874,7 @@ var TodoTxtView = class extends import_obsidian6.ItemView {
     return ((_a = this.file) == null ? void 0 : _a.basename) || "Tasks";
   }
   getIcon() {
-    return "checklist";
+    return "circle-check-big";
   }
   // Initialize view container
   async onOpen() {
@@ -4085,6 +4136,13 @@ ${taskLine}` : taskLine;
     }
     let file = this.app.vault.getAbstractFileByPath(path);
     if (!file) {
+      const folderPath = path.substring(0, path.lastIndexOf("/"));
+      if (folderPath && folderPath !== path) {
+        try {
+          await this.createFolderRecursive(folderPath);
+        } catch (error) {
+        }
+      }
       await this.app.vault.create(path, "");
       file = this.app.vault.getAbstractFileByPath(path);
     }
@@ -4092,6 +4150,17 @@ ${taskLine}` : taskLine;
       return file;
     } else {
       throw new Error("Failed to get or create default Todo.txt file");
+    }
+  }
+  // Create folders recursively
+  async createFolderRecursive(folderPath) {
+    const parts = folderPath.split("/");
+    let currentPath = "";
+    for (const part of parts) {
+      currentPath = currentPath ? `${currentPath}/${part}` : part;
+      if (!this.app.vault.getAbstractFileByPath(currentPath)) {
+        await this.app.vault.createFolder(currentPath);
+      }
     }
   }
   // Convert filter to state

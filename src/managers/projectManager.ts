@@ -200,8 +200,6 @@ export class ProjectManager {
 
         const menu = document.createElement('div');
         menu.className = 'project-context-menu';
-        menu.style.setProperty('--menu-left', `${event.clientX}px`);
-        menu.style.setProperty('--menu-top', `${event.clientY}px`);
 
         // Edit option
         const editOption = menu.createEl('div', {
@@ -235,6 +233,25 @@ export class ProjectManager {
         });
 
         document.body.appendChild(menu);
+
+        // Calculate position to prevent overflow
+        menu.style.setProperty('--menu-left', `${event.clientX}px`);
+        menu.style.setProperty('--menu-top', `${event.clientY}px`);
+
+        const menuRect = menu.getBoundingClientRect();
+        let menuTop = event.clientY;
+        let menuLeft = event.clientX;
+
+        if (menuTop + menuRect.height > window.innerHeight) {
+            menuTop = event.clientY - menuRect.height;
+        }
+
+        if (menuLeft + menuRect.width > window.innerWidth) {
+            menuLeft = event.clientX - menuRect.width;
+        }
+
+        menu.style.setProperty('--menu-left', `${menuLeft}px`);
+        menu.style.setProperty('--menu-top', `${menuTop}px`);
 
         // Close menu on outside click
         const closeMenu = (e: MouseEvent) => {
