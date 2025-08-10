@@ -32,7 +32,17 @@ export class TaskService {
         // Mark current task as completed
         let completedLine = `x ${today} ${cleanedLine}`;
         if (priority) {
-            completedLine += ` pri:${priority}`;
+            // Check if task has description notes
+            const notesMatch = completedLine.match(/(\s+\|\|.*)$/);
+            if (notesMatch) {
+                // Insert priority before description notes
+                const beforeNotes = completedLine.substring(0, completedLine.lastIndexOf(notesMatch[1]));
+                const notePart = notesMatch[1];
+                completedLine = `${beforeNotes} pri:${priority}${notePart}`;
+            } else {
+                // No notes, append at end
+                completedLine += ` pri:${priority}`;
+            }
         }
         await this.fileService.updateTaskLine(file, item, completedLine);
     }
@@ -46,13 +56,16 @@ export class TaskService {
         }
         let taskLine = parts.join(' ');
 
-        // Restore priority from pri: tag
-        const priMatch = taskLine.match(/ pri:([A-Z])$/);
+        // Find and restore priority from pri: tag anywhere in the line
+        const priMatch = taskLine.match(/\s*pri:([A-Z])\b/);
         if (priMatch) {
             const priority = priMatch[1];
-            taskLine = taskLine.replace(/ pri:[A-Z]$/, '');
+            // Remove pri: tag from the line
+            taskLine = taskLine.replace(/\s*pri:[A-Z]\b/, '');
+            // Add priority at the beginning
             taskLine = `(${priority}) ${taskLine}`;
         }
+
         await this.fileService.updateTaskLine(file, item, taskLine);
     }
 
@@ -63,13 +76,39 @@ export class TaskService {
         const wasArchived = originalItem.projects.includes('Archived');
 
         if (isBeingArchived && !wasArchived) {
-            // Store original projects when archiving
+            // Store original projects when archiving for first time
             const originalProjects = originalItem.projects.filter(p => p !== 'Archived');
             if (originalProjects.length > 0) {
                 const origProjString = originalProjects.join(',');
                 // Add origProj tag if not already present
                 if (!newTaskLine.includes('origProj:')) {
-                    newTaskLine += ` origProj:${origProjString}`;
+                    // Check if task has description notes
+                    const notesMatch = newTaskLine.match(/(\s+\|\|.*)$/);
+                    if (notesMatch) {
+                        // Insert origProj before description notes
+                        const beforeNotes = newTaskLine.substring(0, newTaskLine.lastIndexOf(notesMatch[1]));
+                        const notePart = notesMatch[1];
+                        newTaskLine = `${beforeNotes} origProj:${origProjString}${notePart}`;
+                    } else {
+                        // No notes, append at end
+                        newTaskLine += ` origProj:${origProjString}`;
+                    }
+                }
+            }
+        } else if (isBeingArchived && wasArchived) {
+            // Preserve origProj when editing already archived task
+            const origProjValue = originalItem.keyValuePairs.origProj;
+            if (origProjValue && !newTaskLine.includes('origProj:')) {
+                // Check if task has description notes
+                const notesMatch = newTaskLine.match(/(\s+\|\|.*)$/);
+                if (notesMatch) {
+                    // Insert origProj before description notes
+                    const beforeNotes = newTaskLine.substring(0, newTaskLine.lastIndexOf(notesMatch[1]));
+                    const notePart = notesMatch[1];
+                    newTaskLine = `${beforeNotes} origProj:${origProjValue}${notePart}`;
+                } else {
+                    // No notes, append at end
+                    newTaskLine += ` origProj:${origProjValue}`;
                 }
             }
         }
@@ -96,16 +135,18 @@ export class TaskService {
         if (origProjValue) {
             targetProjects = origProjValue.split(',');
         } else {
-            targetProjects = ['Inbox'];
+            targetProjects = ['Inbox']; // Fallback if no original project stored
         }
 
-        // Remove origProj and projects from description
+        // Clean description by removing metadata
         let cleanDescription = item.description
-            .replace(/\s*\+\w+/g, '')
-            .replace(/\s*origProj:\S+/g, '')
+            .replace(/\s*\+\w+/g, '') // Remove all projects
+            .replace(/\s*origProj:\S+/g, '') // Remove origProj key-value
+            .replace(/\s*due:\d{4}-\d{2}-\d{2}/g, '') // Remove due dates
+            .replace(/\s*\|\|.*$/g, '') // Remove description notes
             .trim();
 
-        // Rebuild task with priority and creation date
+        // Rebuild task line starting with priority and creation date
         let newTaskLine = '';
 
         // Add priority if exists
@@ -133,14 +174,20 @@ export class TaskService {
             }
         });
 
-        // Restore key-value pairs except origProj
+        // Add back other key-value pairs except origProj
         Object.entries(item.keyValuePairs).forEach(([key, value]) => {
             if (key !== 'pri' || !item.completed) {
-                if (key !== 'origProj') {
+                if (key !== 'origProj') { // Remove origProj when unarchiving
                     newTaskLine += ` ${key}:${value}`;
                 }
             }
         });
+
+        // Add description notes back if they exist
+        if (item.descriptionNotes) {
+            const escapedNotes = item.descriptionNotes.replace(/\n/g, '\\n');
+            newTaskLine += ` ||${escapedNotes}`;
+        }
 
         await this.fileService.updateTaskLine(file, item, newTaskLine);
     }

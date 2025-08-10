@@ -127,7 +127,7 @@ export class TaskItem {
             } else if (part.startsWith('+') && part.match(/^\+\w+/)) {
                 // Skip project tags
                 return;
-            } else if (part.startsWith('@') && part.match(/^@\w+/)) {
+            } else if (part.startsWith('@') && part.match(/^@\S+/)) {
                 // Render context
                 const contextEl = container.createSpan('context-tag');
                 contextEl.setText(part.substring(1));
@@ -234,7 +234,7 @@ export class TaskItem {
 
         // Show due date with status
         const dueMatch = item.description.match(/due:(\d{4}-\d{2}-\d{2})/);
-        if (dueMatch && !item.completed) {
+        if (dueMatch && !item.completed && !item.projects.includes('Archived')) {
             const dueDateValue = dueMatch[1];
             const formattedDate = DateUtils.formatDate(dueDateValue);
             const dueDateStatus = DateUtils.getDueDateStatus(dueDateValue);

@@ -10,7 +10,7 @@ export class TaskCounter {
     static getTodayTasksCount(items: TodoItem[]): number {
         const today = new Date().toISOString().split('T')[0];
         return items.filter(item => {
-            if (item.completed) return false;
+            if (item.completed || item.projects.includes('Archived')) return false;
             const dueMatch = item.description.match(/due:(\d{4}-\d{2}-\d{2})/);
             return dueMatch && dueMatch[1] <= today;
         }).length;
@@ -20,7 +20,7 @@ export class TaskCounter {
     static getUpcomingTasksCount(items: TodoItem[]): number {
         const today = new Date().toISOString().split('T')[0];
         return items.filter(item => {
-            if (item.completed) return false;
+            if (item.completed || item.projects.includes('Archived')) return false;
             const dueMatch = item.description.match(/due:(\d{4}-\d{2}-\d{2})/);
             return dueMatch && dueMatch[1] > today;
         }).length;
