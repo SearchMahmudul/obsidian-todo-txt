@@ -86,7 +86,7 @@ export class TaskDataHandler {
 
     // Extract priority from description text
     parsePriorityFromDescription(): void {
-        const priorityMatch = this.taskDescription.match(/^\(([A-Z])\)\s*(.*)$/);
+        const priorityMatch = this.taskDescription.match(/^KATEX_INLINE_OPEN([A-Z])KATEX_INLINE_CLOSE\s*(.*)$/);
         if (priorityMatch) {
             this.priority = priorityMatch[1];
             this.taskDescription = priorityMatch[2];

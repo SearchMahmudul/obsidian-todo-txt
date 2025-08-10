@@ -124,11 +124,11 @@ export class TaskItem {
         parts.forEach(part => {
             if (part.trim() === '') {
                 container.appendChild(document.createTextNode(part));
-            } else if (part.startsWith('+')) {
-                // Skip project tags in description
+            } else if (part.startsWith('+') && part.match(/^\+\w+/)) {
+                // Skip project tags
                 return;
-            } else if (part.startsWith('@')) {
-                // Render context tag
+            } else if (part.startsWith('@') && part.match(/^@\w+/)) {
+                // Render context
                 const contextEl = container.createSpan('context-tag');
                 contextEl.setText(part.substring(1));
             } else if (part.startsWith('#')) {
