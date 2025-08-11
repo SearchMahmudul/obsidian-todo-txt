@@ -789,16 +789,13 @@
     transition: background-color 0.2s ease;
 }
 
-.todo-item:hover {
-    background-color: var(--background-modifier-hover);
-}
-
 .todo-item.completed,
 .todo-item.archived {
     opacity: 0.7;
     cursor: default;
 }
 
+.todo-item:hover,
 .todo-item.completed:hover,
 .todo-item.archived:hover {
     background-color: var(--background-modifier-hover);
@@ -940,7 +937,7 @@
 
 /* Context tag */
 .context-tag {
-    color: var(--text-normal);
+    color: color-mix(in srgb, var(--text-on-accent) 90%, transparent);
     background-color: color-mix(in srgb, var(--interactive-accent) 60%, transparent);
     padding: 2px 6px;
     border-radius: 3px;
@@ -1096,6 +1093,12 @@
     Add Task Modal
 ***/
 
+.todo-task-mod,
+.todo-project-mod {
+    background-color: var(--background-secondary);
+    border-color: color-mix(in srgb, var(--modal-border-color) 80%, transparent);
+}
+
 .todo-task-mod .modal-header {
     display: none;
 }
@@ -1121,7 +1124,7 @@
     resize: none;
     overflow-y: auto;
     color: var(--text-normal);
-    background-color: var(--background-primary);
+    background-color: transparent;
     box-shadow: none !important;
 }
 
@@ -1173,7 +1176,7 @@
     border: 1px solid var(--background-modifier-border);
     border-radius: 5px;
     box-shadow: none !important;
-    background: var(--background-primary) !important;
+    background: var(--background-secondary);
     user-select: none;
     transition: border-color 0.1s ease;
 }
