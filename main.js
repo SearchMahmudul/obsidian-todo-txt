@@ -270,8 +270,10 @@ var TaskItem = class {
   // Render complete task item
   render(container, item) {
     const todoEl = container.createDiv("todo-item");
-    if (item.completed || item.projects.includes("Archived")) {
+    if (item.completed) {
       todoEl.addClass("completed");
+    } else if (item.projects.includes("Archived")) {
+      todoEl.addClass("archived");
     }
     this.renderCheckbox(todoEl, item);
     this.renderContent(todoEl, item);
@@ -286,11 +288,15 @@ var TaskItem = class {
       }
     });
   }
-  // Render completion checkbox
   renderCheckbox(container, item) {
     const checkbox = container.createEl("input", { type: "checkbox" });
     checkbox.checked = item.completed || item.projects.includes("Archived");
     checkbox.addClass("todo-checkbox");
+    if (item.completed) {
+      checkbox.addClass("todo-checkbox-completed");
+    } else if (item.projects.includes("Archived")) {
+      checkbox.addClass("todo-checkbox-archived");
+    }
     const priorityForDisplay = this.getPriorityForDisplay(item);
     if (priorityForDisplay) {
       if (["A", "B", "C"].includes(priorityForDisplay)) {
@@ -323,29 +329,31 @@ var TaskItem = class {
     const hasDescriptionNotes = !!item.descriptionNotes;
     const hasKeyValuePairs = Object.keys(item.keyValuePairs).filter((k) => k !== "pri" && k !== "due").length > 0;
     const isMobile = window.innerWidth <= 768;
+    const isCompleted = item.completed;
+    const isArchived = item.projects.includes("Archived");
     const descriptionLine = mainLine.createDiv("todo-description-line");
     const descriptionEl = descriptionLine.createDiv("todo-description");
     this.renderFormattedDescription(descriptionEl, item);
-    if (!item.completed && !hasDueDate && !hasDescriptionNotes && !hasKeyValuePairs && item.projects.length > 0 && !isMobile) {
+    if (!isCompleted && !isArchived && !hasDueDate && !hasDescriptionNotes && !hasKeyValuePairs && item.projects.length > 0 && !isMobile) {
       this.renderInlineProjects(descriptionLine, item.projects, item);
     }
     if (hasDescriptionNotes) {
       const descriptionNotesLine = mainLine.createDiv("todo-description-notes-line");
       const descriptionNotesEl = descriptionNotesLine.createDiv("task-description-notes");
       this.renderFormattedDescriptionNotes(descriptionNotesEl, item.descriptionNotes || "");
-      if (!item.completed && !hasDueDate && !hasKeyValuePairs && item.projects.length > 0 && !isMobile) {
+      if (!isCompleted && !isArchived && !hasDueDate && !hasKeyValuePairs && item.projects.length > 0 && !isMobile) {
         this.renderInlineProjects(descriptionNotesLine, item.projects, item);
       }
     }
-    if (hasDueDate || hasKeyValuePairs || item.completionDate || item.completed && item.projects.length > 0 || isMobile && item.projects.length > 0) {
-      const shouldRenderProjectsInMeta = item.completed || hasDueDate || hasKeyValuePairs || isMobile;
+    if (hasDueDate || hasKeyValuePairs || item.completionDate || isCompleted && item.projects.length > 0 || isArchived && item.projects.length > 0 || isMobile && item.projects.length > 0) {
+      const shouldRenderProjectsInMeta = isCompleted || isArchived || hasDueDate || hasKeyValuePairs || isMobile;
       this.renderMetadata(contentEl, item, shouldRenderProjectsInMeta);
     }
   }
-  // Format description with clickable elements
+  // Parse description into clickable elements
   renderFormattedDescription(container, item) {
     let displayDescription = item.description;
-    if (item.completed) {
+    if (item.completed || item.projects.includes("Archived")) {
       displayDescription = displayDescription.replace(/\s+pri:[A-Z]\b/g, "").trim();
     }
     const parts = displayDescription.split(/(\s+)/);
@@ -354,7 +362,7 @@ var TaskItem = class {
         container.appendChild(document.createTextNode(part));
       } else if (part.startsWith("+") && part.match(/^\+\w+/)) {
         return;
-      } else if (part.startsWith("@") && part.match(/^@\w+/)) {
+      } else if (part.startsWith("@") && part.match(/^@\S+/)) {
         const contextEl = container.createSpan("context-tag");
         contextEl.setText(part.substring(1));
       } else if (part.startsWith("#")) {
@@ -442,7 +450,7 @@ var TaskItem = class {
       creationDateEl.setText(formattedDate);
     }
     const dueMatch = item.description.match(/due:(\d{4}-\d{2}-\d{2})/);
-    if (dueMatch && !item.completed) {
+    if (dueMatch && !item.completed && !item.projects.includes("Archived")) {
       const dueDateValue = dueMatch[1];
       const formattedDate = DateUtils.formatDate(dueDateValue);
       const dueDateStatus = DateUtils.getDueDateStatus(dueDateValue);
@@ -490,7 +498,7 @@ var TaskItem = class {
       });
     }
   }
-  // Get priority from completed or active task
+  // Get priority from active or completed task
   getPriorityForDisplay(item) {
     if (item.priority)
       return item.priority;
@@ -498,7 +506,7 @@ var TaskItem = class {
       return item.keyValuePairs.pri;
     return null;
   }
-  // Get appropriate icon for project
+  // Get icon for project type
   getProjectIcon(project) {
     if (project === "Inbox") {
       return Icons.inbox;
@@ -508,7 +516,7 @@ var TaskItem = class {
     const customIcon = this.projectManager.getProjectIcon(project);
     return customIcon || Icons.hash;
   }
-  // Show original project for archived tasks
+  // Show original project name for archived tasks
   getDisplayProject(project, item) {
     if (project === "Archived" && item.keyValuePairs.origProj) {
       const originalProjects = item.keyValuePairs.origProj.split(",");
@@ -713,7 +721,7 @@ var TaskCounter = class {
   static getTodayTasksCount(items) {
     const today = new Date().toISOString().split("T")[0];
     return items.filter((item) => {
-      if (item.completed)
+      if (item.completed || item.projects.includes("Archived"))
         return false;
       const dueMatch = item.description.match(/due:(\d{4}-\d{2}-\d{2})/);
       return dueMatch && dueMatch[1] <= today;
@@ -723,7 +731,7 @@ var TaskCounter = class {
   static getUpcomingTasksCount(items) {
     const today = new Date().toISOString().split("T")[0];
     return items.filter((item) => {
-      if (item.completed)
+      if (item.completed || item.projects.includes("Archived"))
         return false;
       const dueMatch = item.description.match(/due:(\d{4}-\d{2}-\d{2})/);
       return dueMatch && dueMatch[1] > today;
@@ -3658,7 +3666,14 @@ var TaskService = class {
     }
     let completedLine = `x ${today} ${cleanedLine}`;
     if (priority) {
-      completedLine += ` pri:${priority}`;
+      const notesMatch = completedLine.match(/(\s+\|\|.*)$/);
+      if (notesMatch) {
+        const beforeNotes = completedLine.substring(0, completedLine.lastIndexOf(notesMatch[1]));
+        const notePart = notesMatch[1];
+        completedLine = `${beforeNotes} pri:${priority}${notePart}`;
+      } else {
+        completedLine += ` pri:${priority}`;
+      }
     }
     await this.fileService.updateTaskLine(file, item, completedLine);
   }
@@ -3669,10 +3684,10 @@ var TaskService = class {
       parts.splice(0, 2);
     }
     let taskLine = parts.join(" ");
-    const priMatch = taskLine.match(/ pri:([A-Z])$/);
+    const priMatch = taskLine.match(/\s*pri:([A-Z])\b/);
     if (priMatch) {
       const priority = priMatch[1];
-      taskLine = taskLine.replace(/ pri:[A-Z]$/, "");
+      taskLine = taskLine.replace(/\s*pri:[A-Z]\b/, "");
       taskLine = `(${priority}) ${taskLine}`;
     }
     await this.fileService.updateTaskLine(file, item, taskLine);
@@ -3686,7 +3701,26 @@ var TaskService = class {
       if (originalProjects.length > 0) {
         const origProjString = originalProjects.join(",");
         if (!newTaskLine.includes("origProj:")) {
-          newTaskLine += ` origProj:${origProjString}`;
+          const notesMatch = newTaskLine.match(/(\s+\|\|.*)$/);
+          if (notesMatch) {
+            const beforeNotes = newTaskLine.substring(0, newTaskLine.lastIndexOf(notesMatch[1]));
+            const notePart = notesMatch[1];
+            newTaskLine = `${beforeNotes} origProj:${origProjString}${notePart}`;
+          } else {
+            newTaskLine += ` origProj:${origProjString}`;
+          }
+        }
+      }
+    } else if (isBeingArchived && wasArchived) {
+      const origProjValue = originalItem.keyValuePairs.origProj;
+      if (origProjValue && !newTaskLine.includes("origProj:")) {
+        const notesMatch = newTaskLine.match(/(\s+\|\|.*)$/);
+        if (notesMatch) {
+          const beforeNotes = newTaskLine.substring(0, newTaskLine.lastIndexOf(notesMatch[1]));
+          const notePart = notesMatch[1];
+          newTaskLine = `${beforeNotes} origProj:${origProjValue}${notePart}`;
+        } else {
+          newTaskLine += ` origProj:${origProjValue}`;
         }
       }
     }
@@ -3700,7 +3734,7 @@ var TaskService = class {
   async addNewTask(file, taskLine) {
     await this.fileService.appendTaskLine(file, taskLine);
   }
-  // Move task from archived to original project
+  // Move task from archived back to original project
   async moveTaskFromArchivedToInbox(file, item) {
     const origProjValue = item.keyValuePairs.origProj;
     let targetProjects = [];
@@ -3709,7 +3743,7 @@ var TaskService = class {
     } else {
       targetProjects = ["Inbox"];
     }
-    let cleanDescription = item.description.replace(/\s*\+\w+/g, "").replace(/\s*origProj:\S+/g, "").trim();
+    let cleanDescription = item.description.replace(/\s*\+\w+/g, "").replace(/\s*origProj:\S+/g, "").replace(/\s*due:\d{4}-\d{2}-\d{2}/g, "").replace(/\s*\|\|.*$/g, "").trim();
     let newTaskLine = "";
     if (item.priority) {
       newTaskLine += `(${item.priority}) `;
@@ -3733,9 +3767,13 @@ var TaskService = class {
         }
       }
     });
+    if (item.descriptionNotes) {
+      const escapedNotes = item.descriptionNotes.replace(/\n/g, "\\n");
+      newTaskLine += ` ||${escapedNotes}`;
+    }
     await this.fileService.updateTaskLine(file, item, newTaskLine);
   }
-  // Extract priority from task line
+  // Extract priority from task line format
   extractPriorityFromTaskLine(taskLine) {
     const priorityMatch = taskLine.match(/^\(([A-Z])\)\s+(.+)$/);
     if (priorityMatch) {
