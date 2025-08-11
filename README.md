@@ -61,10 +61,10 @@ Or use symbol shortcuts (works like `/`):
 
 ### Todo.txt Format
 ```txt
-(A) 2025-08-03 @Features Add due date in Todo.txt +Inbox due:2025-06-25
-(B) 2025-08-03 Solve Python #problems rec:1m,3 +Coding due:2025-08-03
-(C) 2025-08-03 Buy groceries from https://example.com +Shop ||Get essentials like milk, eggs, bread, and vegetables.
-2025-08-03 Read Chapter 4 of the physics textbook time:2h +Study due:2025-08-18
+(A) 2025-08-03 @Feature✨ Add due date in Todo.txt +Inbox due:2025-06-25
+(B) 2025-08-03 Solve Python #problems rec:1m,3 +Coding due:2025-08-20
+(C) 2025-08-03 Buy more groceries +Shop due:2025-08-18 ||Get essentials like milk, eggs, bread, and vegetables from https://example.com
+2025-08-03 Read Chapter 4 of the physics textbook time:2h +Study
 ```
 
 **Format breakdown:**
