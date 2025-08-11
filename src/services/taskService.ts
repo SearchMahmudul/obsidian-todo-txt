@@ -29,13 +29,12 @@ export class TaskService {
             }
         }
 
-        // Mark current task as completed
+        // Complete current task
         let completedLine = `x ${today} ${cleanedLine}`;
         if (priority) {
-            // Check if task has description notes
+            // Insert priority before description notes if they exist
             const notesMatch = completedLine.match(/(\s+\|\|.*)$/);
             if (notesMatch) {
-                // Insert priority before description notes
                 const beforeNotes = completedLine.substring(0, completedLine.lastIndexOf(notesMatch[1]));
                 const notePart = notesMatch[1];
                 completedLine = `${beforeNotes} pri:${priority}${notePart}`;
@@ -56,13 +55,11 @@ export class TaskService {
         }
         let taskLine = parts.join(' ');
 
-        // Find and restore priority from pri: tag anywhere in the line
+        // Restore priority from pri: tag to front of task
         const priMatch = taskLine.match(/\s*pri:([A-Z])\b/);
         if (priMatch) {
             const priority = priMatch[1];
-            // Remove pri: tag from the line
             taskLine = taskLine.replace(/\s*pri:[A-Z]\b/, '');
-            // Add priority at the beginning
             taskLine = `(${priority}) ${taskLine}`;
         }
 
@@ -71,43 +68,37 @@ export class TaskService {
 
     // Update task content and handle archiving
     async updateTask(file: TFile, originalItem: TodoItem, newTaskLine: string): Promise<void> {
-        // Check if task is being archived
         const isBeingArchived = newTaskLine.includes('+Archived');
         const wasArchived = originalItem.projects.includes('Archived');
 
         if (isBeingArchived && !wasArchived) {
-            // Store original projects when archiving for first time
+            // Store original projects for first-time archiving
             const originalProjects = originalItem.projects.filter(p => p !== 'Archived');
             if (originalProjects.length > 0) {
                 const origProjString = originalProjects.join(',');
-                // Add origProj tag if not already present
                 if (!newTaskLine.includes('origProj:')) {
-                    // Check if task has description notes
+                    // Insert origProj before description notes if they exist
                     const notesMatch = newTaskLine.match(/(\s+\|\|.*)$/);
                     if (notesMatch) {
-                        // Insert origProj before description notes
                         const beforeNotes = newTaskLine.substring(0, newTaskLine.lastIndexOf(notesMatch[1]));
                         const notePart = notesMatch[1];
                         newTaskLine = `${beforeNotes} origProj:${origProjString}${notePart}`;
                     } else {
-                        // No notes, append at end
                         newTaskLine += ` origProj:${origProjString}`;
                     }
                 }
             }
         } else if (isBeingArchived && wasArchived) {
-            // Preserve origProj when editing already archived task
+            // Preserve origProj when editing archived task
             const origProjValue = originalItem.keyValuePairs.origProj;
             if (origProjValue && !newTaskLine.includes('origProj:')) {
-                // Check if task has description notes
+                // Insert origProj before description notes if they exist
                 const notesMatch = newTaskLine.match(/(\s+\|\|.*)$/);
                 if (notesMatch) {
-                    // Insert origProj before description notes
                     const beforeNotes = newTaskLine.substring(0, newTaskLine.lastIndexOf(notesMatch[1]));
                     const notePart = notesMatch[1];
                     newTaskLine = `${beforeNotes} origProj:${origProjValue}${notePart}`;
                 } else {
-                    // No notes, append at end
                     newTaskLine += ` origProj:${origProjValue}`;
                 }
             }
@@ -126,9 +117,9 @@ export class TaskService {
         await this.fileService.appendTaskLine(file, taskLine);
     }
 
-    // Move task from archived to original project
+    // Move task from archived back to original project
     async moveTaskFromArchivedToInbox(file: TFile, item: TodoItem): Promise<void> {
-        // Get original project from origProj tag
+        // Determine target projects from origProj tag
         const origProjValue = item.keyValuePairs.origProj;
         let targetProjects: string[] = [];
 
@@ -138,28 +129,27 @@ export class TaskService {
             targetProjects = ['Inbox']; // Fallback if no original project stored
         }
 
-        // Clean description by removing metadata
+        // Strip metadata from description
         let cleanDescription = item.description
-            .replace(/\s*\+\w+/g, '') // Remove all projects
-            .replace(/\s*origProj:\S+/g, '') // Remove origProj key-value
+            .replace(/\s*\+\w+/g, '') // Remove projects
+            .replace(/\s*origProj:\S+/g, '') // Remove origProj tag
             .replace(/\s*due:\d{4}-\d{2}-\d{2}/g, '') // Remove due dates
             .replace(/\s*\|\|.*$/g, '') // Remove description notes
             .trim();
 
-        // Rebuild task line starting with priority and creation date
+        // Rebuild task line with original structure
         let newTaskLine = '';
 
-        // Add priority if exists
+        // Add priority
         if (item.priority) {
             newTaskLine += `(${item.priority}) `;
         }
 
-        // Add creation date if exists
+        // Add creation date
         if (item.creationDate) {
             newTaskLine += `${item.creationDate} `;
         }
 
-        // Add cleaned description
         newTaskLine += cleanDescription;
 
         // Add target projects
@@ -174,16 +164,16 @@ export class TaskService {
             }
         });
 
-        // Add back other key-value pairs except origProj
+        // Restore other key-value pairs (excluding origProj)
         Object.entries(item.keyValuePairs).forEach(([key, value]) => {
             if (key !== 'pri' || !item.completed) {
-                if (key !== 'origProj') { // Remove origProj when unarchiving
+                if (key !== 'origProj') {
                     newTaskLine += ` ${key}:${value}`;
                 }
             }
         });
 
-        // Add description notes back if they exist
+        // Restore description notes
         if (item.descriptionNotes) {
             const escapedNotes = item.descriptionNotes.replace(/\n/g, '\\n');
             newTaskLine += ` ||${escapedNotes}`;
@@ -192,7 +182,7 @@ export class TaskService {
         await this.fileService.updateTaskLine(file, item, newTaskLine);
     }
 
-    // Extract priority from task line
+    // Extract priority from task line format
     private extractPriorityFromTaskLine(taskLine: string): { cleanedLine: string; priority: string | null } {
         const priorityMatch = taskLine.match(/^\(([A-Z])\)\s+(.+)$/);
         if (priorityMatch) {

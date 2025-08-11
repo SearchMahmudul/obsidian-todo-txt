@@ -42,7 +42,7 @@ export class TaskItem {
         checkbox.checked = item.completed || item.projects.includes('Archived');
         checkbox.addClass('todo-checkbox');
 
-        // Apply different styling for completed vs archived
+        // Style based on task state
         if (item.completed) {
             checkbox.addClass('todo-checkbox-completed');
         } else if (item.projects.includes('Archived')) {
@@ -59,7 +59,7 @@ export class TaskItem {
             }
         }
 
-        // Handle checkbox changes
+        // Toggle task state on checkbox change
         checkbox.addEventListener('change', async (event) => {
             const isChecked = (event.target as HTMLInputElement).checked;
             if (item.projects.includes('Archived')) {
@@ -81,16 +81,15 @@ export class TaskItem {
         const contentEl = container.createDiv('todo-content');
         const mainLine = contentEl.createDiv('todo-main');
 
-        // Check what metadata we have
+        // Determine what metadata exists
         const dueMatch = item.description.match(/due:(\d{4}-\d{2}-\d{2})/);
         const hasDueDate = dueMatch && !item.completed;
         const hasDescriptionNotes = !!item.descriptionNotes;
         const hasKeyValuePairs = Object.keys(item.keyValuePairs).filter(k => k !== 'pri' && k !== 'due').length > 0;
 
-        // Check if we're on mobile
         const isMobile = window.innerWidth <= 768;
 
-        // Check task type for conditional rendering
+        // Task state flags
         const isCompleted = item.completed;
         const isArchived = item.projects.includes('Archived');
 
@@ -99,7 +98,7 @@ export class TaskItem {
         const descriptionEl = descriptionLine.createDiv('todo-description');
         this.renderFormattedDescription(descriptionEl, item);
 
-        // Show projects inline if not completed/archived, not mobile and no metadata
+        // Show projects inline when appropriate (no metadata, desktop, active tasks)
         if (!isCompleted && !isArchived && !hasDueDate && !hasDescriptionNotes && !hasKeyValuePairs && item.projects.length > 0 && !isMobile) {
             this.renderInlineProjects(descriptionLine, item.projects, item);
         }
@@ -115,18 +114,18 @@ export class TaskItem {
             }
         }
 
-        // Metadata section
+        // Metadata section when needed
         if (hasDueDate || hasKeyValuePairs || item.completionDate || (isCompleted && item.projects.length > 0) || (isArchived && item.projects.length > 0) || (isMobile && item.projects.length > 0)) {
             const shouldRenderProjectsInMeta = isCompleted || isArchived || hasDueDate || hasKeyValuePairs || isMobile;
             this.renderMetadata(contentEl, item, shouldRenderProjectsInMeta);
         }
     }
 
-    // Format description with clickable elements
+    // Parse description into clickable elements
     private renderFormattedDescription(container: HTMLElement, item: TodoItem): void {
         let displayDescription = item.description;
 
-        // Hide priority for completed and archived tasks
+        // Hide priority for completed/archived tasks
         if (item.completed || item.projects.includes('Archived')) {
             displayDescription = displayDescription.replace(/\s+pri:[A-Z]\b/g, '').trim();
         }
@@ -137,14 +136,14 @@ export class TaskItem {
             if (part.trim() === '') {
                 container.appendChild(document.createTextNode(part));
             } else if (part.startsWith('+') && part.match(/^\+\w+/)) {
-                // Skip project tags
+                // Skip project tags (rendered separately)
                 return;
             } else if (part.startsWith('@') && part.match(/^@\S+/)) {
                 // Render context
                 const contextEl = container.createSpan('context-tag');
                 contextEl.setText(part.substring(1));
             } else if (part.startsWith('#')) {
-                // Render clickable hashtag
+                // Clickable hashtag for search
                 const hashtagEl = container.createSpan('hashtag-tag');
                 hashtagEl.setText(part);
                 hashtagEl.addEventListener('click', (e) => {
@@ -156,15 +155,14 @@ export class TaskItem {
                 if (key === 'rec') {
                     return;
                 }
-                // Skip only if valid key:value pair
+                // Skip key:value pairs (rendered in metadata)
                 if (value && value.trim()) {
                     return;
                 } else {
-                    // Treat as text if no value after colon
                     container.appendChild(document.createTextNode(part));
                 }
             } else if (part.match(/https?:\/\/[^\s]+/)) {
-                // Render clickable link
+                // Clickable external link
                 const linkEl = container.createEl('a', {
                     href: part,
                     text: part
@@ -230,21 +228,21 @@ export class TaskItem {
         const metaLeft = metaEl.createDiv('todo-meta-left');
         const metaRight = metaEl.createDiv('todo-meta-right');
 
-        // Show completion date
+        // Completion date for completed tasks
         if (item.completed && item.completionDate) {
             const formattedDate = DateUtils.formatDate(item.completionDate);
             const completionDateEl = metaLeft.createSpan('todo-date completion-date');
             completionDateEl.setText(formattedDate);
         }
 
-        // Show creation date for archived tasks
+        // Creation date for archived tasks
         if (item.projects.includes('Archived') && !item.completed && item.creationDate) {
             const formattedDate = DateUtils.formatDate(item.creationDate);
             const creationDateEl = metaLeft.createSpan('todo-date creation-date');
             creationDateEl.setText(formattedDate);
         }
 
-        // Show due date with status
+        // Due date with status styling
         const dueMatch = item.description.match(/due:(\d{4}-\d{2}-\d{2})/);
         if (dueMatch && !item.completed && !item.projects.includes('Archived')) {
             const dueDateValue = dueMatch[1];
@@ -254,7 +252,7 @@ export class TaskItem {
             const dueDateEl = metaLeft.createSpan('todo-due-date');
             dueDateEl.appendText(formattedDate);
 
-            // Show repeat icon for recurring tasks
+            // Repeat icon for recurring tasks
             const hasRecurrence = item.keyValuePairs.rec || item.description.includes('rec:');
             if (hasRecurrence) {
                 const repeatIcon = dueDateEl.createSpan('repeat-icon');
@@ -267,13 +265,13 @@ export class TaskItem {
             }
         }
 
-        // Show generic completion status
+        // Generic completion status
         if (item.completed && !item.completionDate) {
             const completionDateEl = metaLeft.createSpan('todo-date completion-date');
             completionDateEl.setText('Completed');
         }
 
-        // Show projects in metadata
+        // Projects in metadata when needed
         if (renderProjects && item.projects.length > 0) {
             const projectsEl = metaRight.createDiv('todo-projects-meta');
             item.projects.forEach(project => {
@@ -295,7 +293,7 @@ export class TaskItem {
             });
         }
 
-        // Show other key:value pairs
+        // Additional key:value pairs (excluding system keys)
         const kvPairs = Object.entries(item.keyValuePairs).filter(([key]) =>
             key !== 'pri' &&
             key !== 'due' &&
@@ -314,14 +312,14 @@ export class TaskItem {
         }
     }
 
-    // Get priority from completed or active task
+    // Get priority from active or completed task
     private getPriorityForDisplay(item: TodoItem): string | null {
         if (item.priority) return item.priority;
         if (item.completed && item.keyValuePairs.pri) return item.keyValuePairs.pri;
         return null;
     }
 
-    // Get appropriate icon for project
+    // Get icon for project type
     private getProjectIcon(project: string): string {
         if (project === 'Inbox') {
             return Icons.inbox;
@@ -333,7 +331,7 @@ export class TaskItem {
         return customIcon || Icons.hash;
     }
 
-    // Show original project for archived tasks
+    // Show original project name for archived tasks
     private getDisplayProject(project: string, item: TodoItem): string {
         if (project === 'Archived' && item.keyValuePairs.origProj) {
             const originalProjects = item.keyValuePairs.origProj.split(',');
