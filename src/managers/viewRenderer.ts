@@ -15,7 +15,9 @@ export class ViewRenderer {
     private taskControls: TaskControls;
     private projectsSidebar: ProjectsSidebar;
     private searchInputHasFocus: boolean = false;
-    private sidebarOpen: boolean = window.innerWidth > 768;
+    private sidebarOpen: boolean = false;
+    private resizeObserver: ResizeObserver | null = null;
+    private currentBreakpoint: 'mobile' | 'desktop' = 'mobile';
 
     // Event callbacks
     public onProjectSelect: (project: string) => void = () => { };
@@ -34,7 +36,10 @@ export class ViewRenderer {
         private filterManager: FilterManager,
         private plugin: TodoTxtPlugin
     ) {
-        const isDesktop = window.innerWidth > 768;
+        this.initializeResponsiveClasses();
+        this.setupResizeObserver();
+
+        const isDesktop = this.currentBreakpoint === 'desktop';
         this.sidebarOpen = isDesktop ? !this.plugin.settings.sidebarCollapsed : false;
 
         this.taskItemRenderer = new TaskItem(
@@ -62,14 +67,53 @@ export class ViewRenderer {
             (projectName, shouldPin) => this.onProjectTogglePin(projectName, shouldPin),
             () => this.toggleSidebar()
         );
+    }
 
-        window.addEventListener('resize', () => {
-            const shouldBeOpen = window.innerWidth > 768 ? !this.plugin.settings.sidebarCollapsed : false;
-            if (shouldBeOpen !== this.sidebarOpen) {
-                this.sidebarOpen = shouldBeOpen;
-                this.updateSidebarState();
-            }
-        });
+    // Set responsive classes by container width
+    private initializeResponsiveClasses(): void {
+        this.updateResponsiveClasses();
+    }
+
+    // ResizeObserver for container width changes
+    private setupResizeObserver(): void {
+        if (typeof ResizeObserver !== 'undefined') {
+            this.resizeObserver = new ResizeObserver(() => {
+                this.updateResponsiveClasses();
+                this.handleBreakpointChange();
+            });
+            this.resizeObserver.observe(this.containerEl);
+        }
+    }
+
+    // Update responsive classes by container width
+    private updateResponsiveClasses(): void {
+        const containerWidth = this.containerEl.offsetWidth;
+        const newBreakpoint = containerWidth > 768 ? 'desktop' : 'mobile';
+
+        // Remove existing breakpoint classes
+        this.containerEl.removeClass('mobile', 'desktop');
+
+        // Add new breakpoint class
+        this.containerEl.addClass(newBreakpoint);
+
+        this.currentBreakpoint = newBreakpoint;
+    }
+
+    // Handle breakpoint changes
+    private handleBreakpointChange(): void {
+        const shouldBeOpen = this.currentBreakpoint === 'desktop' ? !this.plugin.settings.sidebarCollapsed : false;
+        if (shouldBeOpen !== this.sidebarOpen) {
+            this.sidebarOpen = shouldBeOpen;
+            this.updateSidebarState();
+        }
+    }
+
+    // Cleanup ResizeObserver
+    public destroy(): void {
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+            this.resizeObserver = null;
+        }
     }
 
     // Render complete view layout
@@ -89,6 +133,10 @@ export class ViewRenderer {
 
         this.containerEl.empty();
         const mainLayout = this.containerEl.createDiv('todo-txt-content');
+
+        // Apply responsive classes
+        this.updateResponsiveClasses();
+        this.setupResizeObserver();
 
         // Apply sidebar state class immediately on render
         if (!this.sidebarOpen) {
@@ -137,7 +185,7 @@ export class ViewRenderer {
         this.updateSidebarState();
 
         // Save state only on desktop
-        if (window.innerWidth > 768) {
+        if (this.currentBreakpoint === 'desktop') {
             this.plugin.settings.sidebarCollapsed = !this.sidebarOpen;
             await this.plugin.saveSettings();
         }
@@ -156,7 +204,7 @@ export class ViewRenderer {
                 sidebar.removeClass('closed');
                 mainContent.removeClass('sidebar-closed');
                 todoContent?.removeClass('sidebar-collapsed');
-                if (window.innerWidth <= 768) {
+                if (this.currentBreakpoint === 'mobile') {
                     overlay?.addClass('visible');
                 }
             } else {
