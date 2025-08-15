@@ -1,4 +1,5 @@
 import { TodoItem } from '../../types';
+import { getCurrentLocalDate } from '../../utils/dateUtils';
 
 export class TaskDataHandler {
     // Task form data
@@ -141,7 +142,7 @@ export class TaskDataHandler {
         // Set or keep creation date
         if (!this.editingItem?.completed) {
             if (!this.isEditMode) {
-                const today = new Date().toISOString().split('T')[0];
+                const today = getCurrentLocalDate();
                 taskLine += `${today} `;
             } else if (this.editingItem?.creationDate) {
                 taskLine += `${this.editingItem.creationDate} `;

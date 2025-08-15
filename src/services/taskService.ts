@@ -2,13 +2,14 @@ import { TFile } from 'obsidian';
 import { TodoItem } from '../types';
 import { FileService } from './fileService';
 import { RecurrenceCalculator } from '../utils/recurrenceCalculator';
+import { getCurrentLocalDate } from '../utils/dateUtils';
 
 export class TaskService {
     constructor(private fileService: FileService) { }
 
     // Mark task as completed
     async completeTask(file: TFile, item: TodoItem): Promise<void> {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getCurrentLocalDate();
         const { cleanedLine, priority } = this.extractPriorityFromTaskLine(item.raw);
 
         // Handle recurring tasks
