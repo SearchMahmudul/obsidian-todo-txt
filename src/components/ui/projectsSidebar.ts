@@ -65,7 +65,7 @@ export class ProjectsSidebar {
                 filterState,
                 () => {
                     this.handleFilterClick(filter.id);
-                    if (window.innerWidth <= 768) {
+                    if (this.getContainerWidth() <= 768) {
                         this.toggleSidebar();
                     }
                 }
@@ -90,6 +90,11 @@ export class ProjectsSidebar {
         }
 
         this.renderProjectsSection(sidebar, unpinnedProjectCounts, filterState, file);
+    }
+
+    private getContainerWidth(): number {
+        const container = document.querySelector('.todo-txt-view');
+        return container ? container.clientWidth : window.innerWidth;
     }
 
     // Filter button clicks

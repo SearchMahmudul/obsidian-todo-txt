@@ -76,6 +76,11 @@ export class TaskItem {
         });
     }
 
+    private getContainerWidth(): number {
+        const container = document.querySelector('.todo-txt-view');
+        return container ? container.clientWidth : window.innerWidth;
+    }
+
     // Render task content and metadata
     private renderContent(container: HTMLElement, item: TodoItem): void {
         const contentEl = container.createDiv('todo-content');
@@ -87,7 +92,7 @@ export class TaskItem {
         const hasDescriptionNotes = !!item.descriptionNotes;
         const hasKeyValuePairs = Object.keys(item.keyValuePairs).filter(k => k !== 'pri' && k !== 'due').length > 0;
 
-        const isMobile = window.innerWidth <= 768;
+        const isMobile = this.getContainerWidth() <= 768;
 
         // Task state flags
         const isCompleted = item.completed;

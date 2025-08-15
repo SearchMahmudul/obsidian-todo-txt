@@ -70,6 +70,11 @@ export class ProjectItem {
         projectMenu.addClass('project-menu-dots');
     }
 
+    private getContainerWidth(): number {
+        const container = document.querySelector('.todo-txt-view');
+        return container ? container.clientWidth : window.innerWidth;
+    }
+
     // Setup all event listeners
     private setupEventListeners(projectItem: HTMLElement, project: string, container: HTMLElement, file: TFile | null): void {
         // Setup drag handling
@@ -89,7 +94,7 @@ export class ProjectItem {
                 this.projectManager.showProjectMenu(e, project, file);
             } else {
                 this.onProjectSelect(project);
-                if (window.innerWidth <= 768) {
+                if (this.getContainerWidth() <= 768) {
                     this.toggleMobileSidebar();
                 }
             }
