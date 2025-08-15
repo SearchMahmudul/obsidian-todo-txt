@@ -57,8 +57,20 @@ export class FileService {
 
     // Extract date from task line
     private extractCreationDate(taskLine: string): string | null {
-        const match = taskLine.match(/^(?:KATEX_INLINE_OPEN[A-Z]KATEX_INLINE_CLOSE\s+)?(\d{4}-\d{2}-\d{2})/);
-        return match ? match[1] : null;
+        let workingLine = taskLine.trim();
+
+        // Skip priority if present
+        if (workingLine.length >= 3 &&
+            workingLine.charAt(0) === '(' &&
+            workingLine.charAt(2) === ')' &&
+            /[A-Z]/.test(workingLine.charAt(1))) {
+
+            workingLine = workingLine.substring(3).trim();
+        }
+
+        // Extract date
+        const dateMatch = workingLine.match(/^(\d{4}-\d{2}-\d{2})/);
+        return dateMatch ? dateMatch[1] : null;
     }
 
     // Rename project in all tasks
