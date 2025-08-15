@@ -129,7 +129,8 @@ export class ViewRenderer {
         const activeElement = document.activeElement;
         this.searchInputHasFocus = activeElement?.classList.contains('search-input') || false;
 
-        const scrollTop = this.containerEl.querySelector('.projects-sidebar')?.scrollTop || 0;
+        const sidebarScrollTop = this.containerEl.querySelector('.projects-sidebar')?.scrollTop || 0;
+        const tasksScrollTop = this.containerEl.querySelector('.todo-tasks-container')?.scrollTop || 0;
 
         this.containerEl.empty();
         const mainLayout = this.containerEl.createDiv('todo-txt-content');
@@ -166,7 +167,10 @@ export class ViewRenderer {
         // Restore scroll position
         requestAnimationFrame(() => {
             const sidebar = this.containerEl.querySelector('.projects-sidebar');
-            if (sidebar) sidebar.scrollTop = scrollTop;
+            if (sidebar) sidebar.scrollTop = sidebarScrollTop;
+
+            const tasksContainer = this.containerEl.querySelector('.todo-tasks-container');
+            if (tasksContainer) tasksContainer.scrollTop = tasksScrollTop;
         });
 
         // Restore search focus
