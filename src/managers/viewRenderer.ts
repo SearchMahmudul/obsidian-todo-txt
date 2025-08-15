@@ -76,7 +76,7 @@ export class ViewRenderer {
 
     // ResizeObserver for container width changes
     private setupResizeObserver(): void {
-        if (typeof ResizeObserver !== 'undefined') {
+        if (typeof ResizeObserver !== 'undefined' && !this.resizeObserver) {
             this.resizeObserver = new ResizeObserver(() => {
                 this.updateResponsiveClasses();
                 this.handleBreakpointChange();
@@ -137,7 +137,6 @@ export class ViewRenderer {
 
         // Apply responsive classes
         this.updateResponsiveClasses();
-        this.setupResizeObserver();
 
         // Apply sidebar state class immediately on render
         if (!this.sidebarOpen) {
