@@ -87,10 +87,15 @@ export class TaskDataHandler {
 
     // Extract priority from description text
     parsePriorityFromDescription(): void {
-        const priorityMatch = this.taskDescription.match(/^KATEX_INLINE_OPEN([A-Z])KATEX_INLINE_CLOSE\s*(.*)$/);
-        if (priorityMatch) {
-            this.priority = priorityMatch[1];
-            this.taskDescription = priorityMatch[2];
+        const trimmed = this.taskDescription.trim();
+
+        if (trimmed.length >= 3 &&
+            trimmed.charAt(0) === '(' &&
+            trimmed.charAt(2) === ')' &&
+            /[A-Z]/.test(trimmed.charAt(1))) {
+
+            this.priority = trimmed.charAt(1);
+            this.taskDescription = trimmed.substring(3).trim();
         }
     }
 
@@ -108,7 +113,6 @@ export class TaskDataHandler {
         contentCheck = contentCheck.replace(/\s*due:\d{4}-\d{2}-\d{2}/g, ''); // Remove due dates
         contentCheck = contentCheck.replace(/\s*rec:\S+/g, ''); // Remove recurrence
         contentCheck = contentCheck.replace(/\s*\w+:\S+/g, ''); // Remove key:value pairs
-        contentCheck = contentCheck.replace(/^\s*KATEX_INLINE_OPEN[A-Z]KATEX_INLINE_CLOSE\s*/, ''); // Remove priority
         contentCheck = contentCheck.replace(/\s*[+@!/*]/g, ''); // Remove standalone symbols
         contentCheck = contentCheck.replace(/\s*\w+:\s*/g, ''); // Remove incomplete key: patterns
 
