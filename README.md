@@ -2,7 +2,7 @@
 
 > Powerful yet simple task management for [Obsidian](https://obsidian.md/) in the portable [Todo.txt](http://todotxt.org/) format, with smart filtering and a modern interface.
 
-![desktop](https://github.com/user-attachments/assets/95f710d7-9adc-4bdd-bffd-ade810f849d7)
+![desktop](https://github.com/user-attachments/assets/82dfeb36-e716-4611-a397-84061fd4f380)
 
 ## ✨ Features
 
@@ -61,7 +61,7 @@ Or use symbol shortcuts (works like `/`):
 
 ### Todo.txt Format
 ```txt
-(A) 2025-08-03 @Feature✨ Add due date in Todo.txt +Inbox due:2025-06-25
+(A) 2025-08-03 @✨Feature Add due date in Todo.txt +Inbox due:2025-06-25
 (B) 2025-08-03 Solve Python #problems rec:1m,3 +Coding due:2025-08-20
 (C) 2025-08-03 Buy more groceries +Shop due:2025-08-18 ||Get essentials like milk, eggs, bread, and vegetables from https://example.com
 2025-08-03 Read Chapter 4 of the physics textbook time:2h +Study
