@@ -9,6 +9,7 @@ import { TFile } from 'obsidian';
 
 export class ProjectsSidebar {
     private projectItemRenderer: ProjectItem;
+    private containerEl: HTMLElement | null = null;
 
     constructor(
         private projectManager: ProjectManager,
@@ -37,6 +38,9 @@ export class ProjectsSidebar {
         file: TFile | null,
         sidebarOpen: boolean
     ): void {
+        // Store container reference for width check
+        this.containerEl = container.closest('.todo-txt-view') as HTMLElement;
+
         const sidebar = container.createDiv('projects-sidebar');
         if (sidebarOpen) {
             sidebar.addClass('open');
@@ -93,8 +97,8 @@ export class ProjectsSidebar {
     }
 
     private getContainerWidth(): number {
-        const container = document.querySelector('.todo-txt-view');
-        return container ? container.clientWidth : window.innerWidth;
+        // Use stored container reference for width detection
+        return this.containerEl ? this.containerEl.clientWidth : window.innerWidth;
     }
 
     // Filter button clicks

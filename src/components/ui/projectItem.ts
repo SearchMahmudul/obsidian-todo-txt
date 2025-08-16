@@ -6,6 +6,7 @@ import { TFile } from 'obsidian';
 
 export class ProjectItem {
     private dragHandler: DragHandler;
+    private containerEl: HTMLElement | null = null;
 
     constructor(
         private projectManager: ProjectManager,
@@ -24,6 +25,9 @@ export class ProjectItem {
         filterState: FilterState,
         file: TFile | null
     ): void {
+        // Save container reference for width check
+        this.containerEl = container.closest('.todo-txt-view') as HTMLElement;
+
         const projectItem = container.createDiv('project-item');
         projectItem.draggable = true;
         projectItem.dataset.project = project;
@@ -71,8 +75,8 @@ export class ProjectItem {
     }
 
     private getContainerWidth(): number {
-        const container = document.querySelector('.todo-txt-view');
-        return container ? container.clientWidth : window.innerWidth;
+        // Use stored container reference for width detection
+        return this.containerEl ? this.containerEl.clientWidth : window.innerWidth;
     }
 
     // Setup all event listeners

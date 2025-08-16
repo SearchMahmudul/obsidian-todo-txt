@@ -18,6 +18,7 @@ export class ViewRenderer {
     private sidebarOpen: boolean = false;
     private resizeObserver: ResizeObserver | null = null;
     private currentBreakpoint: 'mobile' | 'desktop' = 'mobile';
+    private isInitialized: boolean = false;
 
     // Event callbacks
     public onProjectSelect: (project: string) => void = () => { };
@@ -37,10 +38,11 @@ export class ViewRenderer {
         private plugin: TodoTxtPlugin
     ) {
         this.initializeResponsiveClasses();
-        this.setupResizeObserver();
 
         const isDesktop = this.currentBreakpoint === 'desktop';
         this.sidebarOpen = isDesktop ? !this.plugin.settings.sidebarCollapsed : false;
+
+        this.setupResizeObserver();
 
         this.taskItemRenderer = new TaskItem(
             taskManager,
@@ -71,7 +73,12 @@ export class ViewRenderer {
 
     // Set responsive classes by container width
     private initializeResponsiveClasses(): void {
-        this.updateResponsiveClasses();
+        const width = this.containerEl.offsetWidth || window.innerWidth;
+        const initialBreakpoint = width > 768 ? 'desktop' : 'mobile';
+
+        this.containerEl.removeClass('mobile', 'desktop')
+        this.containerEl.addClass(initialBreakpoint);
+        this.currentBreakpoint = initialBreakpoint;
     }
 
     // ResizeObserver for container width changes
@@ -79,7 +86,6 @@ export class ViewRenderer {
         if (typeof ResizeObserver !== 'undefined' && !this.resizeObserver) {
             this.resizeObserver = new ResizeObserver(() => {
                 this.updateResponsiveClasses();
-                this.handleBreakpointChange();
             });
             this.resizeObserver.observe(this.containerEl);
         }
@@ -88,23 +94,47 @@ export class ViewRenderer {
     // Update responsive classes by container width
     private updateResponsiveClasses(): void {
         const containerWidth = this.containerEl.offsetWidth;
-        const newBreakpoint = containerWidth > 768 ? 'desktop' : 'mobile';
 
-        // Remove existing breakpoint classes
-        this.containerEl.removeClass('mobile', 'desktop');
+        // Fallback to window width if container width is 0
+        const effectiveWidth = containerWidth > 0 ? containerWidth : window.innerWidth;
+        const newBreakpoint = effectiveWidth > 768 ? 'desktop' : 'mobile';
 
-        // Add new breakpoint class
-        this.containerEl.addClass(newBreakpoint);
-
-        this.currentBreakpoint = newBreakpoint;
+        // Only update if breakpoint actually changed
+        if (newBreakpoint !== this.currentBreakpoint) {
+            this.containerEl.removeClass('mobile', 'desktop');
+            this.containerEl.addClass(newBreakpoint);
+            this.currentBreakpoint = newBreakpoint;
+            this.handleBreakpointChange();
+        }
     }
 
     // Handle breakpoint changes
     private handleBreakpointChange(): void {
-        const shouldBeOpen = this.currentBreakpoint === 'desktop' ? !this.plugin.settings.sidebarCollapsed : false;
+        if (!this.isInitialized) {
+            return;
+        }
+
+        const isDesktop = this.currentBreakpoint === 'desktop';
+        const shouldBeOpen = isDesktop ? !this.plugin.settings.sidebarCollapsed : false;
+
         if (shouldBeOpen !== this.sidebarOpen) {
             this.sidebarOpen = shouldBeOpen;
             this.updateSidebarState();
+        }
+    }
+
+    // Force responsive update
+    private forceResponsiveUpdate(): void {
+        const containerWidth = this.containerEl.offsetWidth;
+        const effectiveWidth = containerWidth > 0 ? containerWidth : window.innerWidth;
+        const correctBreakpoint = effectiveWidth > 768 ? 'desktop' : 'mobile';
+
+        this.containerEl.removeClass('mobile', 'desktop');
+        this.containerEl.addClass(correctBreakpoint);
+
+        if (correctBreakpoint !== this.currentBreakpoint) {
+            this.currentBreakpoint = correctBreakpoint;
+            this.handleBreakpointChange();
         }
     }
 
@@ -135,10 +165,10 @@ export class ViewRenderer {
         this.containerEl.empty();
         const mainLayout = this.containerEl.createDiv('todo-txt-content');
 
-        // Apply responsive classes
-        this.updateResponsiveClasses();
+        // Force update to apply correct classes
+        this.forceResponsiveUpdate();
 
-        // Apply sidebar state class immediately on render
+        // Apply sidebar state class on render
         if (!this.sidebarOpen) {
             mainLayout.addClass('sidebar-collapsed');
         }
@@ -179,6 +209,11 @@ export class ViewRenderer {
                 searchInput.focus();
                 searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
             }
+        }
+
+        // Mark as initialized after first render
+        if (!this.isInitialized) {
+            this.isInitialized = true;
         }
     }
 

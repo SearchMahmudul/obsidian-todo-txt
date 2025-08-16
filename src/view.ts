@@ -93,12 +93,17 @@ export class TodoTxtView extends ItemView {
 
 		this.projectManager.onProjectUpdate = async (oldName, newName, icon) => {
 			if (this.file) {
-				await this.projectService.updateProjectName(this.file, oldName, newName);
-				if (this.filterManager.getSelectedProject() === oldName) {
-					this.filterManager.setProjectFilter(newName);
+				if (oldName !== newName) {
+					await this.projectService.updateProjectName(this.file, oldName, newName);
+
+					if (this.filterManager.getSelectedProject() === oldName) {
+						this.filterManager.setProjectFilter(newName);
+					}
 				}
 
-				this.refresh();
+				if (oldName === newName) {
+					this.refresh();
+				}
 			}
 		};
 
