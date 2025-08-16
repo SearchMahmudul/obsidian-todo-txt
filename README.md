@@ -12,7 +12,7 @@
 - **Quick filters** - All, Today, Upcoming, Inbox, Archived, Completed
 - **Flexible sorting** - By priority, due date, creation date, alphabetical, projects, or contexts
 - **Project organization** - Custom icons, pinning, drag & drop reordering, bulk operations
-- **Priority levels** - Visual priority indicators (A–Z, A = highest)
+- **Priority levels** - Visual priority indicators (A, B, C)
 - **Due dates** - Smart date recognition with status indicators
 - **Recurring tasks** - Flexible recurrence patterns
 - **Context tags** - Organize by location, energy, or focus
