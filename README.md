@@ -12,7 +12,7 @@
 - **Quick filters** - All, Today, Upcoming, Inbox, Archived, Completed
 - **Flexible sorting** - By priority, due date, creation date, alphabetical, projects, or contexts
 - **Project organization** - Custom icons, pinning, drag & drop reordering, bulk operations
-- **Priority levels** - Visual priority indicators (A, B, C)
+- **Priority levels** - Visual priority indicators (A–Z, A = highest)
 - **Due dates** - Smart date recognition with status indicators
 - **Recurring tasks** - Flexible recurrence patterns
 - **Context tags** - Organize by location, energy, or focus
@@ -68,7 +68,7 @@ Or use symbol shortcuts (works like `/`):
 ```
 
 **Format breakdown:**
-- `(A)` - Priority (A=High, B=Medium, C=Low)
+- `(A)` - Priority (A–Z, A = highest, Z = lowest)
 - `2025-08-03` - Creation date
 - `@Features` - Context tag
 - `#problems` - Hashtag (searchable)
@@ -117,10 +117,11 @@ Support for flexible recurrence patterns:
 ## 🎯 Pro Tips
 
 - Set a custom hotkey for "Todo.txt: Add task" in Settings → Hotkeys for quick task creation anywhere in Obsidian
+- Pin the Todo.txt file to the Obsidian sidebar for quick access
 - Use multiple .txt files for different contexts: `work.txt`, `personal.txt`
 - Search with hashtags: `#meeting` finds all meeting-related tasks
 - Set up projects for different areas: `+Work`, `+Personal`, `+Learning`
-- Use contexts for energy levels: `@high-energy`, `@low-energy`
+- Use contexts for work types: `@🐞Bug`, `@✨Feature`, `@⚙️Refector`
 - Combine filters: Search while in a project view to find specific tasks
 - Sort by due date to prioritize urgent tasks, or by project to batch similar work
 - Organize your sidebar by dragging projects to match your workflow priorities

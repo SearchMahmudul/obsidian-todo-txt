@@ -3,7 +3,7 @@ import process from "process";
 import builtins from "builtin-modules";
 
 const banner = `/**
-	Todo.txt v1.0.1
+	Todo.txt v1.0.2
 	@author Mahmudul
 	@url https://github.com/SearchMahmudul
 **/

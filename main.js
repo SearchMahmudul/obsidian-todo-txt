@@ -1,5 +1,5 @@
 /**
-	Todo.txt v1.0.1
+	Todo.txt v1.0.2
 	@author Mahmudul
 	@url https://github.com/SearchMahmudul
 **/
@@ -214,6 +214,13 @@ var DateUtils = class {
     }
   }
 };
+function getCurrentLocalDate() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 function calculateDueDate(option) {
   const today = new Date();
   let targetDate;
@@ -320,6 +327,10 @@ var TaskItem = class {
       }
     });
   }
+  getContainerWidth() {
+    const container = document.querySelector(".todo-txt-view");
+    return container ? container.clientWidth : window.innerWidth;
+  }
   // Render task content and metadata
   renderContent(container, item) {
     const contentEl = container.createDiv("todo-content");
@@ -328,7 +339,7 @@ var TaskItem = class {
     const hasDueDate = dueMatch && !item.completed;
     const hasDescriptionNotes = !!item.descriptionNotes;
     const hasKeyValuePairs = Object.keys(item.keyValuePairs).filter((k) => k !== "pri" && k !== "due").length > 0;
-    const isMobile = window.innerWidth <= 768;
+    const isMobile = this.getContainerWidth() <= 768;
     const isCompleted = item.completed;
     const isArchived = item.projects.includes("Archived");
     const descriptionLine = mainLine.createDiv("todo-description-line");
@@ -1017,9 +1028,11 @@ var ProjectItem = class {
     this.onProjectReorder = onProjectReorder;
     this.onProjectTogglePin = onProjectTogglePin;
     this.toggleMobileSidebar = toggleMobileSidebar;
+    this.containerEl = null;
     this.dragHandler = new DragHandler(onProjectReorder, onProjectTogglePin);
   }
   render(container, project, count, filterState, file) {
+    this.containerEl = container.closest(".todo-txt-view");
     const projectItem = container.createDiv("project-item");
     projectItem.draggable = true;
     projectItem.dataset.project = project;
@@ -1053,6 +1066,9 @@ var ProjectItem = class {
     projectMenu.appendChild(dotsSvg);
     projectMenu.addClass("project-menu-dots");
   }
+  getContainerWidth() {
+    return this.containerEl ? this.containerEl.clientWidth : window.innerWidth;
+  }
   // Setup all event listeners
   setupEventListeners(projectItem, project, container, file) {
     const isTouchHandled = this.dragHandler.setupDragEvents(projectItem, project, container);
@@ -1068,7 +1084,7 @@ var ProjectItem = class {
         this.projectManager.showProjectMenu(e, project, file);
       } else {
         this.onProjectSelect(project);
-        if (window.innerWidth <= 768) {
+        if (this.getContainerWidth() <= 768) {
           this.toggleMobileSidebar();
         }
       }
@@ -1086,6 +1102,7 @@ var ProjectsSidebar = class {
     this.onProjectReorder = onProjectReorder;
     this.onProjectTogglePin = onProjectTogglePin;
     this.toggleSidebar = toggleSidebar;
+    this.containerEl = null;
     this.projectItemRenderer = new ProjectItem(
       projectManager,
       onProjectSelect,
@@ -1095,6 +1112,7 @@ var ProjectsSidebar = class {
     );
   }
   render(container, allItems, filterState, pinnedProjects, allKnownProjects, file, sidebarOpen) {
+    this.containerEl = container.closest(".todo-txt-view");
     const sidebar = container.createDiv("projects-sidebar");
     if (sidebarOpen) {
       sidebar.addClass("open");
@@ -1119,7 +1137,7 @@ var ProjectsSidebar = class {
         filterState,
         () => {
           this.handleFilterClick(filter.id);
-          if (window.innerWidth <= 768) {
+          if (this.getContainerWidth() <= 768) {
             this.toggleSidebar();
           }
         }
@@ -1138,6 +1156,9 @@ var ProjectsSidebar = class {
       });
     }
     this.renderProjectsSection(sidebar, unpinnedProjectCounts, filterState, file);
+  }
+  getContainerWidth() {
+    return this.containerEl ? this.containerEl.clientWidth : window.innerWidth;
   }
   // Filter button clicks
   handleFilterClick(filterId) {
@@ -1211,7 +1232,10 @@ var ViewRenderer = class {
     this.filterManager = filterManager;
     this.plugin = plugin;
     this.searchInputHasFocus = false;
-    this.sidebarOpen = window.innerWidth > 768;
+    this.sidebarOpen = false;
+    this.resizeObserver = null;
+    this.currentBreakpoint = "mobile";
+    this.isInitialized = false;
     // Event callbacks
     this.onProjectSelect = () => {
     };
@@ -1229,8 +1253,10 @@ var ViewRenderer = class {
     };
     this.onProjectTogglePin = () => {
     };
-    const isDesktop = window.innerWidth > 768;
+    this.initializeResponsiveClasses();
+    const isDesktop = this.currentBreakpoint === "desktop";
     this.sidebarOpen = isDesktop ? !this.plugin.settings.sidebarCollapsed : false;
+    this.setupResizeObserver();
     this.taskItemRenderer = new TaskItem(
       taskManager,
       projectManager,
@@ -1254,22 +1280,77 @@ var ViewRenderer = class {
       (projectName, shouldPin) => this.onProjectTogglePin(projectName, shouldPin),
       () => this.toggleSidebar()
     );
-    window.addEventListener("resize", () => {
-      const shouldBeOpen = window.innerWidth > 768 ? !this.plugin.settings.sidebarCollapsed : false;
-      if (shouldBeOpen !== this.sidebarOpen) {
-        this.sidebarOpen = shouldBeOpen;
-        this.updateSidebarState();
-      }
-    });
+  }
+  // Set responsive classes by container width
+  initializeResponsiveClasses() {
+    const width = this.containerEl.offsetWidth || window.innerWidth;
+    const initialBreakpoint = width > 768 ? "desktop" : "mobile";
+    this.containerEl.removeClass("mobile", "desktop");
+    this.containerEl.addClass(initialBreakpoint);
+    this.currentBreakpoint = initialBreakpoint;
+  }
+  // ResizeObserver for container width changes
+  setupResizeObserver() {
+    if (typeof ResizeObserver !== "undefined" && !this.resizeObserver) {
+      this.resizeObserver = new ResizeObserver(() => {
+        this.updateResponsiveClasses();
+      });
+      this.resizeObserver.observe(this.containerEl);
+    }
+  }
+  // Update responsive classes by container width
+  updateResponsiveClasses() {
+    const containerWidth = this.containerEl.offsetWidth;
+    const effectiveWidth = containerWidth > 0 ? containerWidth : window.innerWidth;
+    const newBreakpoint = effectiveWidth > 768 ? "desktop" : "mobile";
+    if (newBreakpoint !== this.currentBreakpoint) {
+      this.containerEl.removeClass("mobile", "desktop");
+      this.containerEl.addClass(newBreakpoint);
+      this.currentBreakpoint = newBreakpoint;
+      this.handleBreakpointChange();
+    }
+  }
+  // Handle breakpoint changes
+  handleBreakpointChange() {
+    if (!this.isInitialized) {
+      return;
+    }
+    const isDesktop = this.currentBreakpoint === "desktop";
+    const shouldBeOpen = isDesktop ? !this.plugin.settings.sidebarCollapsed : false;
+    if (shouldBeOpen !== this.sidebarOpen) {
+      this.sidebarOpen = shouldBeOpen;
+      this.updateSidebarState();
+    }
+  }
+  // Force responsive update
+  forceResponsiveUpdate() {
+    const containerWidth = this.containerEl.offsetWidth;
+    const effectiveWidth = containerWidth > 0 ? containerWidth : window.innerWidth;
+    const correctBreakpoint = effectiveWidth > 768 ? "desktop" : "mobile";
+    this.containerEl.removeClass("mobile", "desktop");
+    this.containerEl.addClass(correctBreakpoint);
+    if (correctBreakpoint !== this.currentBreakpoint) {
+      this.currentBreakpoint = correctBreakpoint;
+      this.handleBreakpointChange();
+    }
+  }
+  // Cleanup ResizeObserver
+  destroy() {
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
   }
   // Render complete view layout
   render(filteredItems, allItems, filterState, pinnedProjects, allKnownProjects, file) {
-    var _a;
+    var _a, _b;
     const activeElement = document.activeElement;
     this.searchInputHasFocus = (activeElement == null ? void 0 : activeElement.classList.contains("search-input")) || false;
-    const scrollTop = ((_a = this.containerEl.querySelector(".projects-sidebar")) == null ? void 0 : _a.scrollTop) || 0;
+    const sidebarScrollTop = ((_a = this.containerEl.querySelector(".projects-sidebar")) == null ? void 0 : _a.scrollTop) || 0;
+    const tasksScrollTop = ((_b = this.containerEl.querySelector(".todo-tasks-container")) == null ? void 0 : _b.scrollTop) || 0;
     this.containerEl.empty();
     const mainLayout = this.containerEl.createDiv("todo-txt-content");
+    this.forceResponsiveUpdate();
     if (!this.sidebarOpen) {
       mainLayout.addClass("sidebar-collapsed");
     }
@@ -1289,7 +1370,10 @@ var ViewRenderer = class {
     requestAnimationFrame(() => {
       const sidebar = this.containerEl.querySelector(".projects-sidebar");
       if (sidebar)
-        sidebar.scrollTop = scrollTop;
+        sidebar.scrollTop = sidebarScrollTop;
+      const tasksContainer = this.containerEl.querySelector(".todo-tasks-container");
+      if (tasksContainer)
+        tasksContainer.scrollTop = tasksScrollTop;
     });
     if (this.searchInputHasFocus) {
       const searchInput = this.containerEl.querySelector(".search-input");
@@ -1298,12 +1382,15 @@ var ViewRenderer = class {
         searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
       }
     }
+    if (!this.isInitialized) {
+      this.isInitialized = true;
+    }
   }
   // Toggle sidebar visibility
   async toggleSidebar() {
     this.sidebarOpen = !this.sidebarOpen;
     this.updateSidebarState();
-    if (window.innerWidth > 768) {
+    if (this.currentBreakpoint === "desktop") {
       this.plugin.settings.sidebarCollapsed = !this.sidebarOpen;
       await this.plugin.saveSettings();
     }
@@ -1320,7 +1407,7 @@ var ViewRenderer = class {
         sidebar.removeClass("closed");
         mainContent.removeClass("sidebar-closed");
         todoContent == null ? void 0 : todoContent.removeClass("sidebar-collapsed");
-        if (window.innerWidth <= 768) {
+        if (this.currentBreakpoint === "mobile") {
           overlay == null ? void 0 : overlay.addClass("visible");
         }
       } else {
@@ -1722,10 +1809,10 @@ var TaskDataHandler = class {
   }
   // Extract priority from description text
   parsePriorityFromDescription() {
-    const priorityMatch = this.taskDescription.match(/^KATEX_INLINE_OPEN([A-Z])KATEX_INLINE_CLOSE\s*(.*)$/);
-    if (priorityMatch) {
-      this.priority = priorityMatch[1];
-      this.taskDescription = priorityMatch[2];
+    const trimmed = this.taskDescription.trim();
+    if (trimmed.length >= 3 && trimmed.charAt(0) === "(" && trimmed.charAt(2) === ")" && /[A-Z]/.test(trimmed.charAt(1))) {
+      this.priority = trimmed.charAt(1);
+      this.taskDescription = trimmed.substring(3).trim();
     }
   }
   // Build final task line string
@@ -1741,7 +1828,6 @@ var TaskDataHandler = class {
     contentCheck = contentCheck.replace(/\s*due:\d{4}-\d{2}-\d{2}/g, "");
     contentCheck = contentCheck.replace(/\s*rec:\S+/g, "");
     contentCheck = contentCheck.replace(/\s*\w+:\S+/g, "");
-    contentCheck = contentCheck.replace(/^\s*KATEX_INLINE_OPEN[A-Z]KATEX_INLINE_CLOSE\s*/, "");
     contentCheck = contentCheck.replace(/\s*[+@!/*]/g, "");
     contentCheck = contentCheck.replace(/\s*\w+:\s*/g, "");
     if (!contentCheck.trim()) {
@@ -1762,7 +1848,7 @@ var TaskDataHandler = class {
     }
     if (!((_b = this.editingItem) == null ? void 0 : _b.completed)) {
       if (!this.isEditMode) {
-        const today = new Date().toISOString().split("T")[0];
+        const today = getCurrentLocalDate();
         taskLine += `${today} `;
       } else if ((_c = this.editingItem) == null ? void 0 : _c.creationDate) {
         taskLine += `${this.editingItem.creationDate} `;
@@ -3470,8 +3556,12 @@ var FileService = class {
   }
   // Extract date from task line
   extractCreationDate(taskLine) {
-    const match = taskLine.match(/^(?:KATEX_INLINE_OPEN[A-Z]KATEX_INLINE_CLOSE\s+)?(\d{4}-\d{2}-\d{2})/);
-    return match ? match[1] : null;
+    let workingLine = taskLine.trim();
+    if (workingLine.length >= 3 && workingLine.charAt(0) === "(" && workingLine.charAt(2) === ")" && /[A-Z]/.test(workingLine.charAt(1))) {
+      workingLine = workingLine.substring(3).trim();
+    }
+    const dateMatch = workingLine.match(/^(\d{4}-\d{2}-\d{2})/);
+    return dateMatch ? dateMatch[1] : null;
   }
   // Rename project in all tasks
   async replaceProjectName(file, oldName, newName) {
@@ -3650,7 +3740,7 @@ var TaskService = class {
   }
   // Mark task as completed
   async completeTask(file, item) {
-    const today = new Date().toISOString().split("T")[0];
+    const today = getCurrentLocalDate();
     const { cleanedLine, priority } = this.extractPriorityFromTaskLine(item.raw);
     const recMatch = item.raw.match(/\brec:(\S+)/);
     if (recMatch) {
@@ -3890,11 +3980,15 @@ var TodoTxtView = class extends import_obsidian6.ItemView {
     };
     this.projectManager.onProjectUpdate = async (oldName, newName, icon) => {
       if (this.file) {
-        await this.projectService.updateProjectName(this.file, oldName, newName);
-        if (this.filterManager.getSelectedProject() === oldName) {
-          this.filterManager.setProjectFilter(newName);
+        if (oldName !== newName) {
+          await this.projectService.updateProjectName(this.file, oldName, newName);
+          if (this.filterManager.getSelectedProject() === oldName) {
+            this.filterManager.setProjectFilter(newName);
+          }
         }
-        this.refresh();
+        if (oldName === newName) {
+          this.refresh();
+        }
       }
     };
     this.projectManager.onProjectDelete = async (projectName) => {

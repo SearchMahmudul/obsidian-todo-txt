@@ -918,7 +918,7 @@
     color: var(--link-color-hover);
     background-color: color-mix(in srgb, var(--link-color) 25%, transparent);
     padding: 2px 6px;
-    border-radius: 3px;
+    border-radius: 4px;
     font-size: 14px;
     line-height: 1.75;
     margin: 0 1px;
