@@ -262,7 +262,7 @@
 }
 
 .mobile .projects-sidebar .projects-list:last-child {
-    padding-bottom: 45px;
+    padding-bottom: 70px;
 }
 
 .mobile .projects-sidebar.open {
@@ -540,6 +540,10 @@
     background-color: var(--background-secondary);
 }
 
+.todo-controls .search-input:hover {
+    background-color: var(--background-secondary);
+}
+
 
 
 /***
@@ -577,16 +581,16 @@
     background-color: var(--background-primary);
 }
 
-/* Mobile Adjustments */
 .search-sort-wrapper {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding-right: 5px;
+    padding-right: 4px;
     flex: 1;
-    min-width: 200px;
+    min-width: 150px;
 }
 
+/* Mobile Adjustments */
 .sort-toggle-btn {
     display: none;
     align-items: center;
@@ -610,7 +614,7 @@
 }
 
 .mobile .todo-controls .search-input {
-    background-color: color-mix(in srgb, var(--background-secondary) 90%, transparent);
+    background-color: var(--background-primary-alt);
 }
 
 .mobile .sort-toggle-btn {
@@ -809,7 +813,7 @@
 :root {
     --priority-a-color: #ff6b6b;
     --priority-b-color: #feca57;
-    --priority-c-color: #48dbfb;
+    --priority-c-color: #32c5ec;
 }
 
 .todo-checkbox {
@@ -841,6 +845,11 @@
     background: color-mix(in srgb, var(--priority-c-color) 10%, transparent) !important;
 }
 
+.todo-checkbox:checked {
+    border-color: var(--checkbox-border-color) !important;
+    background: var(--checkbox-border-color) !important;
+}
+
 .todo-checkbox.priority-a:checked {
     border-color: var(--priority-a-color) !important;
     background: var(--priority-a-color) !important;
@@ -854,6 +863,14 @@
 .todo-checkbox.priority-c:checked {
     border-color: var(--priority-c-color) !important;
     background: var(--priority-c-color) !important;
+}
+
+/* Completed task tick icon */
+@media (min-width: 769px) {
+    .todo-checkbox:checked::after {
+        -webkit-mask-position: 70% 70% !important;
+        mask-position: 70% 70% !important;
+    }
 }
 
 
@@ -967,7 +984,7 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 5px;
+    gap: 10px;
 }
 
 /* Due date */
@@ -996,7 +1013,6 @@
 .repeat-icon {
     display: inline-flex;
     align-items: center;
-    margin-left: 3px;
 }
 
 .repeat-icon svg {
@@ -1022,7 +1038,7 @@
 /* Project */
 .todo-projects-inline {
     display: flex;
-    gap: 8px;
+    gap: 10px;
     margin-left: auto;
     flex-shrink: 0;
 }
@@ -1030,6 +1046,7 @@
 .todo-projects-meta {
     display: flex;
     flex-wrap: wrap;
+    gap: 10px;
 }
 
 .todo-project-meta {
@@ -1160,6 +1177,7 @@
 .todo-task-mod .modal-dropdown:hover,
 .todo-task-mod .modal-date-picker:hover {
     border-color: color-mix(in srgb, var(--text-normal) 20%, transparent);
+    background: var(--background-secondary);
 }
 
 .todo-task-mod .modal-dropdown {
@@ -1376,11 +1394,15 @@
     width: 100%;
     border: 1px solid var(--background-modifier-border);
     background-color: transparent;
+    box-shadow: none !important;
+}
+
+.todo-project-mod input:hover {
+    background-color: transparent;
 }
 
 .todo-project-mod input:focus {
     border: 1px solid color-mix(in srgb, var(--text-normal) 20%, transparent) !important;
-    box-shadow: none !important;
 }
 
 /* Action Button */
