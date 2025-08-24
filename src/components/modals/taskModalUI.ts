@@ -99,11 +99,10 @@ export class TaskModalUI {
         projectSelect.addClass('modal-dropdown');
         this.projectDropdown = projectSelect;
 
-        // Add default projects
+        // Inbox first
         projectSelect.createEl('option', { value: 'Inbox', text: 'Inbox' });
-        projectSelect.createEl('option', { value: 'Archived', text: 'Archived' });
 
-        // Add available projects
+        // Other projects
         this.dataHandler.availableProjects
             .filter(p => p !== 'Inbox' && p !== 'Archived')
             .forEach(project => {
@@ -112,6 +111,9 @@ export class TaskModalUI {
                     text: project.replace(/_/g, ' ')
                 });
             });
+
+        // Archived last
+        projectSelect.createEl('option', { value: 'Archived', text: 'Archived' });
 
         projectSelect.value = this.dataHandler.selectedProject;
     }

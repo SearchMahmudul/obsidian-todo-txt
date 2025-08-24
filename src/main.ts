@@ -122,32 +122,76 @@ export default class TodoTxtPlugin extends Plugin {
         modal.open();
     }
 
-    // Extract projects from file
+    // Get projects from file and settings
     private async getAvailableProjectsFromFile(file: TFile): Promise<string[]> {
         try {
-            const content = await this.app.vault.read(file);
             const projects = new Set<string>();
 
+            // Add stored projects
+            if (this.settings.allKnownProjects && this.settings.allKnownProjects[file.path]) {
+                this.settings.allKnownProjects[file.path].forEach(project => {
+                    if (project !== 'Inbox') {
+                        projects.add(project);
+                    }
+                });
+            }
+
+            const content = await this.app.vault.read(file);
             const lines = content.split('\n').filter(line => line.trim().length > 0);
 
             lines.forEach(line => {
-                // Match +ProjectName patterns
-                const projectMatches = line.match(/\+(\w+)/g);
-                if (projectMatches) {
-                    projectMatches.forEach(match => {
-                        const project = match.substring(1); // Remove +
-                        if (project !== 'Inbox') {
-                            projects.add(project);
-                        }
-                    });
-                }
+                const projectsFromLine = this.extractProjectsFromLine(line);
+                projectsFromLine.forEach(project => {
+                    if (project !== 'Inbox') {
+                        projects.add(project);
+                    }
+                });
             });
 
             return Array.from(projects).sort();
         } catch (error) {
             console.error('Error reading file for projects:', error);
+
+            // Fallback to stored projects
+            if (this.settings.allKnownProjects && this.settings.allKnownProjects[file.path]) {
+                return this.settings.allKnownProjects[file.path]
+                    .filter(project => project !== 'Inbox')
+                    .sort();
+            }
+
             return [];
         }
+    }
+
+    // Extract projects from todo line
+    private extractProjectsFromLine(line: string): string[] {
+        const projects: string[] = [];
+
+        // Remove notes section
+        let cleanLine = line;
+        const notesIndex = cleanLine.indexOf('||');
+        if (notesIndex !== -1) {
+            cleanLine = cleanLine.substring(0, notesIndex).trim();
+        }
+
+        // Remove todo metadata
+        cleanLine = cleanLine.replace(/^x\s+/, ''); // Remove completion marker
+        cleanLine = cleanLine.replace(/^KATEX_INLINE_OPEN[A-Z]KATEX_INLINE_CLOSE\s+/, ''); // Remove priority
+        cleanLine = cleanLine.replace(/^\d{4}-\d{2}-\d{2}\s+/, ''); // Remove creation date
+        cleanLine = cleanLine.replace(/^\d{4}-\d{2}-\d{2}\s+\d{4}-\d{2}-\d{2}\s+/, ''); // Remove completion and creation dates
+
+        // Find project tokens
+        const tokens = cleanLine.split(/\s+/);
+
+        for (const token of tokens) {
+            // Match +ProjectName only
+            if (/^\+\w+$/.test(token)) {
+                const project = token.substring(1);
+                projects.push(project);
+            }
+        }
+
+        return projects;
     }
 
     // Extract contexts from file
@@ -158,15 +202,11 @@ export default class TodoTxtPlugin extends Plugin {
 
             const lines = content.split('\n').filter(line => line.trim().length > 0);
 
-            // Match @ContextName patterns
             lines.forEach(line => {
-                const contextMatches = line.match(/@(\w+)/g);
-                if (contextMatches) {
-                    contextMatches.forEach(match => {
-                        const context = match.substring(1); // Remove @
-                        contexts.add(context);
-                    });
-                }
+                const contextsFromLine = this.extractContextsFromLine(line);
+                contextsFromLine.forEach(context => {
+                    contexts.add(context);
+                });
             });
 
             return Array.from(contexts).sort();
@@ -174,6 +214,36 @@ export default class TodoTxtPlugin extends Plugin {
             console.error('Error reading file for contexts:', error);
             return [];
         }
+    }
+
+    // Extract contexts from todo line
+    private extractContextsFromLine(line: string): string[] {
+        const contexts: string[] = [];
+
+        // Remove notes section
+        let cleanLine = line;
+        const notesIndex = cleanLine.indexOf('||');
+        if (notesIndex !== -1) {
+            cleanLine = cleanLine.substring(0, notesIndex).trim();
+        }
+
+        // Remove todo metadata
+        cleanLine = cleanLine.replace(/^x\s+/, ''); // Remove completion marker
+        cleanLine = cleanLine.replace(/^KATEX_INLINE_OPEN[A-Z]KATEX_INLINE_CLOSE\s+/, ''); // Remove priority
+        cleanLine = cleanLine.replace(/^\d{4}-\d{2}-\d{2}\s+/, ''); // Remove creation date
+        cleanLine = cleanLine.replace(/^\d{4}-\d{2}-\d{2}\s+\d{4}-\d{2}-\d{2}\s+/, ''); // Remove completion and creation dates
+
+        // Find context tokens
+        const tokens = cleanLine.split(/\s+/);
+
+        for (const token of tokens) {
+            if (/^@\S+$/.test(token)) {
+                const context = token.substring(1);
+                contexts.push(context);
+            }
+        }
+
+        return contexts;
     }
 
     // Add task to default file

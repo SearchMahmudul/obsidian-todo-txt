@@ -102,10 +102,7 @@ export class SuggestionManager {
 
     // Create project suggestions handler (+)
     private createProjectHandler(): SuggestionHandler {
-        const projectsForSuggestion = [...this.dataHandler.availableProjects];
-        if (!projectsForSuggestion.includes('Inbox')) {
-            projectsForSuggestion.unshift('Inbox');
-        }
+        const projectsForSuggestion = this.getOrderedProjectsForSuggestions();
 
         return new SuggestionHandler({
             type: 'project',
@@ -135,6 +132,26 @@ export class SuggestionManager {
                 return true;
             }
         });
+    }
+
+    // Get projects in order
+    private getOrderedProjectsForSuggestions(): string[] {
+        const availableProjects = [...this.dataHandler.availableProjects];
+        const orderedProjects: string[] = [];
+
+        // Inbox first
+        orderedProjects.push('Inbox');
+
+        // Other projects
+        const otherProjects = availableProjects.filter(project =>
+            project !== 'Inbox' && project !== 'Archived'
+        );
+        orderedProjects.push(...otherProjects);
+
+        // Archived last
+        orderedProjects.push('Archived');
+
+        return orderedProjects;
     }
 
     // Create due date suggestions handler (*)
@@ -333,10 +350,7 @@ export class SuggestionManager {
                 this.mainMenuHandler.updateItems(['High', 'Medium', 'Low', 'None']);
                 break;
             case 'Project':
-                const projectsForMenu = [...this.dataHandler.availableProjects];
-                if (!projectsForMenu.includes('Inbox')) {
-                    projectsForMenu.unshift('Inbox');
-                }
+                const projectsForMenu = this.getOrderedProjectsForSuggestions();
                 this.mainMenuHandler.updateItems(projectsForMenu);
                 break;
             case 'Context':
