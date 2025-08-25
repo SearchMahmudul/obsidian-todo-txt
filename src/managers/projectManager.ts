@@ -37,6 +37,17 @@ export class ProjectManager {
         this.allKnownProjects.push(...newProjects);
     }
 
+    // Update projects from todo items and save if needed
+    async updateAndSaveFromTodoItems(items: TodoItem[], file: TFile | null): Promise<void> {
+        const oldProjectsCount = this.allKnownProjects.length;
+        this.updateFromTodoItems(items);
+
+        // Save if new projects added
+        if (this.allKnownProjects.length > oldProjectsCount) {
+            await this.saveAllKnownProjects(file);
+        }
+    }
+
     // Count active tasks per project
     getProjectCounts(items: TodoItem[]): { project: string; count: number }[] {
         const projectCounts = new Map<string, number>();

@@ -50,7 +50,7 @@ export class TaskService {
     // Unmark task completion
     async uncompleteTask(file: TFile, item: TodoItem): Promise<void> {
         const parts = item.raw.trim().split(/\s+/);
-        // Remove completion marker and date
+        // Remove completion marker & date
         if (parts[0] === 'x' && /^\d{4}-\d{2}-\d{2}$/.test(parts[1])) {
             parts.splice(0, 2);
         }
@@ -62,6 +62,18 @@ export class TaskService {
             const priority = priMatch[1];
             taskLine = taskLine.replace(/\s*pri:[A-Z]\b/, '');
             taskLine = `(${priority}) ${taskLine}`;
+        }
+
+        // Add +Inbox if no projects
+        if (item.projects.length === 0) {
+            const notesMatch = taskLine.match(/(\s+\|\|.*)$/);
+            if (notesMatch) {
+                const beforeNotes = taskLine.substring(0, taskLine.lastIndexOf(notesMatch[1]));
+                const notePart = notesMatch[1];
+                taskLine = `${beforeNotes} +Inbox${notePart}`;
+            } else {
+                taskLine += ' +Inbox';
+            }
         }
 
         await this.fileService.updateTaskLine(file, item, taskLine);

@@ -90,7 +90,28 @@ export class FileService {
     async removeProjectFromTasks(file: TFile, projectName: string): Promise<void> {
         const currentContent = await this.readFile(file);
         const lines = currentContent.split('\n');
-        const filteredLines = lines.filter(line => !line.includes(`+${projectName}`));
-        await this.writeFile(file, filteredLines.join('\n'));
+
+        const updatedLines = lines.map(line => {
+            // Skip empty lines
+            if (!line.trim()) {
+                return line;
+            }
+
+            // Check if line has project
+            if (!line.includes(`+${projectName}`)) {
+                return line;
+            }
+
+            // Check if task is completed
+            const isCompleted = line.trim().startsWith('x ');
+
+            if (isCompleted) {
+                return line.replace(new RegExp(`\\s*\\+${projectName}\\b`, 'g'), '');
+            } else {
+                return null;
+            }
+        }).filter(line => line !== null);
+
+        await this.writeFile(file, updatedLines.join('\n'));
     }
 }

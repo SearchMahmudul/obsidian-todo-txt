@@ -193,7 +193,7 @@ export class TodoTxtView extends ItemView {
 			this.todoItems = [];
 		}
 		this.todoItems = TodoParser.parseTodoTxt(data);
-		this.updateManagers();
+		await this.updateManagers();
 		this.refresh();
 	}
 
@@ -217,9 +217,17 @@ export class TodoTxtView extends ItemView {
 	}
 
 	// Update managers with current data
-	private updateManagers(): void {
+	private async updateManagers(): Promise<void> {
 		this.taskManager.setTodoItems(this.todoItems);
+
+		// Check for new projects before update
+		const oldProjectsCount = this.projectManager.allKnownProjects.length;
 		this.projectManager.updateFromTodoItems(this.todoItems);
+
+		// Save projects if new ones found
+		if (this.projectManager.allKnownProjects.length > oldProjectsCount) {
+			await this.projectManager.saveAllKnownProjects(this.file);
+		}
 
 		// Extract available contexts and projects
 		const contexts = new Set<string>();

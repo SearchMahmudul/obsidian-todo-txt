@@ -252,6 +252,50 @@ export default class TodoTxtPlugin extends Plugin {
         const currentContent = await this.app.vault.read(defaultFile);
         const newContent = currentContent ? `${currentContent}\n${taskLine}` : taskLine;
         await this.app.vault.modify(defaultFile, newContent);
+
+        // Extract and save new projects from task
+        const projects = this.extractProjectsFromLine(taskLine);
+        if (projects.length > 0) {
+            // Initialize settings if needed
+            if (!this.settings.allKnownProjects) {
+                this.settings.allKnownProjects = {};
+            }
+            if (!this.settings.allKnownProjects[defaultFile.path]) {
+                this.settings.allKnownProjects[defaultFile.path] = [];
+            }
+
+            // Add new projects
+            let projectsAdded = false;
+            projects.forEach(project => {
+                if (!this.settings.allKnownProjects![defaultFile.path].includes(project) &&
+                    project !== 'Inbox' && project !== 'Archived') {
+                    this.settings.allKnownProjects![defaultFile.path].push(project);
+                    projectsAdded = true;
+                }
+            });
+
+            // Save if projects were added
+            if (projectsAdded) {
+                await this.saveSettings();
+            }
+
+            // Update existing view if open
+            const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_TODO_TXT);
+            for (const leaf of leaves) {
+                const view = leaf.view as TodoTxtView;
+                if (view.getFile()?.path === defaultFile.path) {
+                    const projectManager = view.getProjectManager();
+                    // Add new projects to project manager
+                    projects.forEach(project => {
+                        if (!projectManager.allKnownProjects.includes(project) &&
+                            project !== 'Inbox' && project !== 'Archived') {
+                            projectManager.allKnownProjects.push(project);
+                        }
+                    });
+                    break;
+                }
+            }
+        }
     }
 
     // Open todo view for file
