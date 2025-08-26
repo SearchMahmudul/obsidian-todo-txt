@@ -1,19 +1,18 @@
 import { SuggestionHandler } from './suggestionHandler';
+import { MenuSuggestions } from './menuSuggestions';
 import { TaskDataHandler } from '../modals/taskDataHandler';
 import { TaskModalUI } from '../modals/taskModalUI';
 import { calculateDueDate, getRepeatSyntax } from '../../utils/dateUtils';
 
 export class SuggestionManager {
-    // Individual suggestion handlers
     contextHandler: SuggestionHandler;
     priorityHandler: SuggestionHandler;
     projectHandler: SuggestionHandler;
     dueDateHandler: SuggestionHandler;
-    mainMenuHandler: SuggestionHandler;
+    mainMenuHandler: MenuSuggestions;
 
     private activeHandler: SuggestionHandler | null = null;
     private isInRepeatMode: boolean = false;
-    private mainMenuMode: string = '';
 
     constructor(
         private dataHandler: TaskDataHandler,
@@ -24,10 +23,17 @@ export class SuggestionManager {
         this.priorityHandler = this.createPriorityHandler();
         this.projectHandler = this.createProjectHandler();
         this.dueDateHandler = this.createDueDateHandler();
-        this.mainMenuHandler = this.createMainMenuHandler();
+
+        // Main menu handler with its own complex logic
+        this.mainMenuHandler = new MenuSuggestions(
+            dataHandler,
+            ui,
+            () => this.getOrderedProjectsForSuggestions(),
+            onProjectChange
+        );
     }
 
-    // Create context suggestions handler (@)
+    // Context suggestions (@)
     private createContextHandler(): SuggestionHandler {
         return new SuggestionHandler({
             type: 'context',
@@ -41,12 +47,10 @@ export class SuggestionManager {
                 const beforeAt = value.substring(0, symbolPosition);
                 const afterCursor = value.substring(cursorPosition);
 
-                // Insert context tag
                 const newValue = beforeAt + `@${context} ` + afterCursor;
                 input.value = newValue;
                 this.dataHandler.taskDescription = newValue;
 
-                // Position cursor after context
                 const newCursorPosition = symbolPosition + context.length + 2;
                 input.setSelectionRange(newCursorPosition, newCursorPosition);
                 input.focus();
@@ -57,13 +61,12 @@ export class SuggestionManager {
         });
     }
 
-    // Create priority suggestions handler (!)
+    // Priority suggestions (!)
     private createPriorityHandler(): SuggestionHandler {
         return new SuggestionHandler({
             type: 'priority',
             items: ['A', 'B', 'C', ''],
             symbol: '!',
-            // Allow searching by priority name
             customFilter: (item: string, searchTerm: string) => {
                 const priorityMap: { [key: string]: string } = {
                     'A': 'high',
@@ -83,12 +86,10 @@ export class SuggestionManager {
                 const beforeExclamation = value.substring(0, symbolPosition);
                 const afterCursor = value.substring(cursorPosition);
 
-                // Remove symbol from text
                 const newValue = beforeExclamation + afterCursor;
                 input.value = newValue;
                 this.dataHandler.taskDescription = newValue;
 
-                // Set priority in UI
                 this.dataHandler.priority = priority;
                 this.ui.updatePriority(priority);
 
@@ -101,7 +102,7 @@ export class SuggestionManager {
         });
     }
 
-    // Create project suggestions handler (+)
+    // Project suggestions (+)
     private createProjectHandler(): SuggestionHandler {
         const projectsForSuggestion = this.getOrderedProjectsForSuggestions();
 
@@ -117,16 +118,14 @@ export class SuggestionManager {
                 const beforePlus = value.substring(0, symbolPosition);
                 const afterCursor = value.substring(cursorPosition);
 
-                // Remove symbol from text
                 const newValue = beforePlus + afterCursor;
                 input.value = newValue;
                 this.dataHandler.taskDescription = newValue;
 
-                // Set project in UI
                 this.dataHandler.selectedProject = project;
                 this.ui.updateProject(project);
 
-                // Trigger context update if callback provided (non-blocking)
+                // Non-blocking context update
                 if (this.onProjectChange) {
                     this.onProjectChange(project).catch(error => {
                         console.error('Error updating contexts for project:', error);
@@ -142,27 +141,7 @@ export class SuggestionManager {
         });
     }
 
-    // Get projects in order
-    private getOrderedProjectsForSuggestions(): string[] {
-        const availableProjects = [...this.dataHandler.availableProjects];
-        const orderedProjects: string[] = [];
-
-        // Inbox first
-        orderedProjects.push('Inbox');
-
-        // Other projects
-        const otherProjects = availableProjects.filter(project =>
-            project !== 'Inbox' && project !== 'Archived'
-        );
-        orderedProjects.push(...otherProjects);
-
-        // Archived last
-        orderedProjects.push('Archived');
-
-        return orderedProjects;
-    }
-
-    // Create due date suggestions handler (*)
+    // Due date suggestions (*)
     private createDueDateHandler(): SuggestionHandler {
         return new SuggestionHandler({
             type: 'priority',
@@ -176,7 +155,7 @@ export class SuggestionManager {
                 const beforeSymbol = value.substring(0, symbolPosition);
                 const afterCursor = value.substring(cursorPosition);
 
-                // Enter repeat mode
+                // Handle repeat mode
                 if (option === 'Repeat' && !this.isInRepeatMode) {
                     this.isInRepeatMode = true;
                     this.dueDateHandler.updateItems(['Daily', 'Weekly', 'Monthly', 'Yearly']);
@@ -185,8 +164,8 @@ export class SuggestionManager {
                     return false;
                 }
 
-                // Handle repeat selection
                 if (this.isInRepeatMode) {
+                    // Apply repeat syntax
                     const repeatSyntax = getRepeatSyntax(option);
                     const newValue = beforeSymbol + repeatSyntax + ' ' + afterCursor;
                     input.value = newValue;
@@ -198,11 +177,8 @@ export class SuggestionManager {
                     const newPosition = beforeSymbol.length + repeatSyntax.length + 1;
                     input.setSelectionRange(newPosition, newPosition);
                     input.focus();
-
-                    this.activeHandler = null;
-                    return true;
                 } else {
-                    // Handle date selection
+                    // Apply due date
                     const dueDate = calculateDueDate(option);
                     input.value = beforeSymbol + afterCursor;
                     this.dataHandler.taskDescription = input.value;
@@ -212,172 +188,29 @@ export class SuggestionManager {
 
                     input.setSelectionRange(symbolPosition, symbolPosition);
                     input.focus();
-
-                    this.activeHandler = null;
-                    return true;
                 }
+
+                this.activeHandler = null;
+                return true;
             }
         });
     }
 
-    // Create main menu handler (/)
-    private createMainMenuHandler(): SuggestionHandler {
-        return new SuggestionHandler({
-            type: 'priority',
-            items: ['Date', 'Priority', 'Project', 'Context'],
-            symbol: '/',
-            getDisplayText: (item: string) => {
-                if (this.mainMenuMode === 'Project') {
-                    return item.replace(/_/g, ' ');
-                }
-                return item;
-            },
-            onSelect: (option: string, symbolPosition: number, cursorPosition: number) => {
-                const input = this.ui.getTaskInputElement();
-                if (!input) return true;
+    // Get projects ordered for display
+    private getOrderedProjectsForSuggestions(): string[] {
+        const availableProjects = [...this.dataHandler.availableProjects];
+        const orderedProjects: string[] = [];
 
-                const value = input.value;
-                const beforeSymbol = value.substring(0, symbolPosition);
-                const afterCursor = value.substring(cursorPosition);
+        orderedProjects.push('Inbox');
 
-                if (this.mainMenuMode) {
-                    return this.handleMainMenuSubmenuSelection(
-                        option,
-                        symbolPosition,
-                        cursorPosition,
-                        beforeSymbol,
-                        afterCursor,
-                        input
-                    );
-                } else {
-                    return this.handleMainMenuSelection(option, value, symbolPosition, cursorPosition, input);
-                }
-            }
-        });
-    }
+        const otherProjects = availableProjects.filter(project =>
+            project !== 'Inbox' && project !== 'Archived'
+        );
+        orderedProjects.push(...otherProjects);
 
-    // Handle submenu selections
-    private handleMainMenuSubmenuSelection(
-        option: string,
-        symbolPosition: number,
-        cursorPosition: number,
-        beforeSymbol: string,
-        afterCursor: string,
-        input: HTMLTextAreaElement
-    ): boolean {
-        // Enter repeat submenu
-        if (this.mainMenuMode === 'Date' && option === 'Repeat') {
-            this.mainMenuHandler.updateItems(['Daily', 'Weekly', 'Monthly', 'Yearly']);
-            this.mainMenuMode = 'Date-Repeat';
-            const searchTerm = input.value.substring(symbolPosition + 1, cursorPosition).toLowerCase();
-            this.mainMenuHandler.showSuggestions(searchTerm, input, cursorPosition);
-            return false;
-        }
+        orderedProjects.push('Archived');
 
-        switch (this.mainMenuMode) {
-            case 'Date':
-                const dueDate = calculateDueDate(option);
-                input.value = beforeSymbol + afterCursor;
-                this.dataHandler.taskDescription = input.value;
-                this.dataHandler.dueDate = dueDate;
-                this.ui.updateDueDate(dueDate);
-                input.setSelectionRange(symbolPosition, symbolPosition);
-                input.focus();
-                break;
-
-            case 'Date-Repeat':
-                const repeatSyntax = getRepeatSyntax(option);
-                const newValue = beforeSymbol + repeatSyntax + ' ' + afterCursor;
-                input.value = newValue;
-                this.dataHandler.taskDescription = input.value;
-                const newPosition = beforeSymbol.length + repeatSyntax.length + 1;
-                input.setSelectionRange(newPosition, newPosition);
-                input.focus();
-                break;
-
-            case 'Priority':
-                // Map display names to priority values
-                const priorityMap: { [key: string]: string } = {
-                    'High': 'A',
-                    'Medium': 'B',
-                    'Low': 'C',
-                    'None': ''
-                };
-                const priority = priorityMap[option] || '';
-                input.value = beforeSymbol + afterCursor;
-                this.dataHandler.taskDescription = input.value;
-                this.dataHandler.priority = priority;
-                this.ui.updatePriority(priority);
-                input.setSelectionRange(symbolPosition, symbolPosition);
-                input.focus();
-                break;
-
-            case 'Project':
-                input.value = beforeSymbol + afterCursor;
-                this.dataHandler.taskDescription = input.value;
-                this.dataHandler.selectedProject = option;
-                this.ui.updateProject(option);
-
-                // Trigger context update if callback provided (non-blocking)
-                if (this.onProjectChange) {
-                    this.onProjectChange(option).catch(error => {
-                        console.error('Error updating contexts for project:', error);
-                    });
-                }
-
-                input.setSelectionRange(symbolPosition, symbolPosition);
-                input.focus();
-                break;
-
-            case 'Context':
-                // Insert context tag in text
-                const ctxValue = beforeSymbol + `@${option} ` + afterCursor;
-                input.value = ctxValue;
-                this.dataHandler.taskDescription = input.value;
-                const ctxPosition = symbolPosition + option.length + 2;
-                input.setSelectionRange(ctxPosition, ctxPosition);
-                input.focus();
-                break;
-        }
-
-        // Reset menu state
-        this.mainMenuMode = '';
-        this.mainMenuHandler.updateItems(['Date', 'Priority', 'Project', 'Context']);
-        this.activeHandler = null;
-        return true;
-    }
-
-    // Handle main menu category selection
-    private handleMainMenuSelection(
-        option: string,
-        value: string,
-        symbolPosition: number,
-        cursorPosition: number,
-        input: HTMLTextAreaElement
-    ): boolean {
-        this.mainMenuMode = option;
-
-        // Update items for selected category
-        switch (option) {
-            case 'Date':
-                this.mainMenuHandler.updateItems(['Today', 'Tomorrow', 'Next Week', 'Next Month', 'Repeat']);
-                break;
-            case 'Priority':
-                this.mainMenuHandler.updateItems(['High', 'Medium', 'Low', 'None']);
-                break;
-            case 'Project':
-                const projectsForMenu = this.getOrderedProjectsForSuggestions();
-                this.mainMenuHandler.updateItems(projectsForMenu);
-                break;
-            case 'Context':
-                this.mainMenuHandler.updateItems(this.dataHandler.availableContexts);
-                break;
-        }
-
-        // Show submenu
-        const searchTerm = value.substring(symbolPosition + 1, cursorPosition).toLowerCase();
-        this.mainMenuHandler.showSuggestions(searchTerm, input, cursorPosition);
-        return false;
+        return orderedProjects;
     }
 
     getActiveHandler(): SuggestionHandler | null {
@@ -388,29 +221,22 @@ export class SuggestionManager {
         this.activeHandler = handler;
     }
 
-    // Reset all mode states
+    // Reset all states
     resetModes(): void {
         if (this.isInRepeatMode) {
             this.isInRepeatMode = false;
             this.dueDateHandler.updateItems(['Today', 'Tomorrow', 'Next Week', 'Next Month', 'Repeat']);
         }
 
-        if (this.mainMenuMode) {
-            this.mainMenuMode = '';
-            this.mainMenuHandler.updateItems(['Date', 'Priority', 'Project', 'Context']);
-        }
+        this.mainMenuHandler.resetMode();
     }
 
-    // Update context handler with new items
+    // Update contexts
     updateContextItems(newContexts: string[]): void {
         this.contextHandler.updateItems(newContexts);
-
-        if (this.mainMenuMode === 'Context') {
-            this.mainMenuHandler.updateItems(newContexts);
-        }
+        this.mainMenuHandler.updateContextItems(newContexts);
     }
 
-    // Clean up all handlers
     cleanup(): void {
         this.contextHandler.cleanup();
         this.priorityHandler.cleanup();

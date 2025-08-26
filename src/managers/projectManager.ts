@@ -2,6 +2,7 @@ import { App, TFile } from 'obsidian';
 import { TodoItem } from '../types';
 import { AddProjectModal } from '../components/modals/addProjectModal';
 import { DeleteProjectModal } from '../components/modals/confirmModals';
+import { ProjectPersistence } from '../utils/projectPersistence';
 import TodoTxtPlugin from '../main';
 
 export class ProjectManager {
@@ -10,6 +11,9 @@ export class ProjectManager {
     public allKnownProjects: string[] = [];
     public projectIcons: Map<string, string> = new Map();
 
+    // Persistence handler
+    private persistence: ProjectPersistence;
+
     // Callback handlers
     public onProjectCreate: (projectName: string, icon?: string) => Promise<void> = async () => { };
     public onProjectUpdate: (oldName: string, newName: string, icon?: string) => Promise<void> = async () => { };
@@ -17,6 +21,7 @@ export class ProjectManager {
     public onProjectPin: (projectName: string, isPinned: boolean) => Promise<void> = async () => { };
 
     constructor(private plugin: TodoTxtPlugin) {
+        this.persistence = new ProjectPersistence(plugin);
     }
 
     // Extract projects from todo items
@@ -138,6 +143,11 @@ export class ProjectManager {
         return projects.sort();
     }
 
+    // Get project icon
+    getProjectIcon(projectName: string): string {
+        return this.projectIcons.get(projectName) || '';
+    }
+
     // Open modal to create project
     openAddProjectModal(file: TFile | null): void {
         const modal = new AddProjectModal(
@@ -172,34 +182,6 @@ export class ProjectManager {
             currentIcon
         );
         modal.open();
-    }
-
-    // Save icons to settings
-    async saveProjectIcons(file: TFile | null): Promise<void> {
-        if (!file) return;
-
-        if (!this.plugin.settings.projectIcons) {
-            this.plugin.settings.projectIcons = {};
-        }
-
-        this.plugin.settings.projectIcons[file.path] = Object.fromEntries(this.projectIcons);
-        await this.plugin.saveSettings();
-    }
-
-    // Load icons from settings
-    loadProjectIcons(file: TFile | null): void {
-        if (!file) return;
-
-        if (this.plugin.settings.projectIcons && this.plugin.settings.projectIcons[file.path]) {
-            this.projectIcons = new Map(Object.entries(this.plugin.settings.projectIcons[file.path]));
-        } else {
-            this.projectIcons = new Map();
-        }
-    }
-
-    // Get project icon
-    getProjectIcon(projectName: string): string {
-        return this.projectIcons.get(projectName) || '';
     }
 
     // Show context menu for project
@@ -326,49 +308,28 @@ export class ProjectManager {
         await this.saveProjectIcons(file);
     }
 
-    // Save pinned projects to settings
+    // Persistence delegation methods
     async savePinnedProjects(file: TFile | null): Promise<void> {
-        if (!file) return;
-
-        if (!this.plugin.settings.pinnedProjects) {
-            this.plugin.settings.pinnedProjects = {};
-        }
-
-        this.plugin.settings.pinnedProjects[file.path] = [...this.pinnedProjects];
-        await this.plugin.saveSettings();
+        await this.persistence.savePinnedProjects(file, this.pinnedProjects);
     }
 
-    // Load pinned projects from settings
     loadPinnedProjects(file: TFile | null): void {
-        if (!file) return;
-
-        if (this.plugin.settings.pinnedProjects && this.plugin.settings.pinnedProjects[file.path]) {
-            this.pinnedProjects = [...this.plugin.settings.pinnedProjects[file.path]];
-        } else {
-            this.pinnedProjects = [];
-        }
+        this.pinnedProjects = this.persistence.loadPinnedProjects(file);
     }
 
-    // Save all known projects to settings
     async saveAllKnownProjects(file: TFile | null): Promise<void> {
-        if (!file) return;
-
-        if (!this.plugin.settings.allKnownProjects) {
-            this.plugin.settings.allKnownProjects = {};
-        }
-
-        this.plugin.settings.allKnownProjects[file.path] = [...this.allKnownProjects];
-        await this.plugin.saveSettings();
+        await this.persistence.saveAllKnownProjects(file, this.allKnownProjects);
     }
 
-    // Load all known projects from settings
     loadAllKnownProjects(file: TFile | null): void {
-        if (!file) return;
+        this.allKnownProjects = this.persistence.loadAllKnownProjects(file);
+    }
 
-        if (this.plugin.settings.allKnownProjects && this.plugin.settings.allKnownProjects[file.path]) {
-            this.allKnownProjects = [...this.plugin.settings.allKnownProjects[file.path]];
-        } else {
-            this.allKnownProjects = [];
-        }
+    async saveProjectIcons(file: TFile | null): Promise<void> {
+        await this.persistence.saveProjectIcons(file, this.projectIcons);
+    }
+
+    loadProjectIcons(file: TFile | null): void {
+        this.projectIcons = this.persistence.loadProjectIcons(file);
     }
 }

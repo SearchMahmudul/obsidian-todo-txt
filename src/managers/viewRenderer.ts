@@ -6,6 +6,7 @@ import { Icons, createSVGElement } from '../utils/icons';
 import { TaskItem } from '../components/ui/taskItem';
 import { TaskControls } from '../components/ui/taskControls';
 import { ProjectsSidebar } from '../components/ui/projectsSidebar';
+import { ResponsiveManager, Breakpoint } from '../utils/responsiveManager';
 import { TFile } from 'obsidian';
 import TodoTxtPlugin from '../main';
 
@@ -14,10 +15,11 @@ export class ViewRenderer {
     private taskItemRenderer: TaskItem;
     private taskControls: TaskControls;
     private projectsSidebar: ProjectsSidebar;
+    private responsiveManager: ResponsiveManager;
+
+    // State
     private searchInputHasFocus: boolean = false;
     private sidebarOpen: boolean = false;
-    private resizeObserver: ResizeObserver | null = null;
-    private currentBreakpoint: 'mobile' | 'desktop' = 'mobile';
     private isInitialized: boolean = false;
 
     // Event callbacks
@@ -37,13 +39,16 @@ export class ViewRenderer {
         private filterManager: FilterManager,
         private plugin: TodoTxtPlugin
     ) {
-        this.initializeResponsiveClasses();
+        // Initialize responsive manager
+        this.responsiveManager = new ResponsiveManager(
+            containerEl,
+            (newBreakpoint, oldBreakpoint) => this.handleBreakpointChange(newBreakpoint)
+        );
 
-        const isDesktop = this.currentBreakpoint === 'desktop';
+        const isDesktop = this.responsiveManager.getCurrentBreakpoint() === 'desktop';
         this.sidebarOpen = isDesktop ? !this.plugin.settings.sidebarCollapsed : false;
 
-        this.setupResizeObserver();
-
+        // Initialize UI components
         this.taskItemRenderer = new TaskItem(
             taskManager,
             projectManager,
@@ -71,50 +76,11 @@ export class ViewRenderer {
         );
     }
 
-    // Set responsive classes by container width
-    private initializeResponsiveClasses(): void {
-        const width = this.containerEl.offsetWidth || window.innerWidth;
-        const initialBreakpoint = width > 768 ? 'desktop' : 'mobile';
+    // Handle responsive breakpoint changes
+    private handleBreakpointChange(newBreakpoint: Breakpoint): void {
+        if (!this.isInitialized) return;
 
-        this.containerEl.removeClass('mobile', 'desktop')
-        this.containerEl.addClass(initialBreakpoint);
-        this.currentBreakpoint = initialBreakpoint;
-    }
-
-    // ResizeObserver for container width changes
-    private setupResizeObserver(): void {
-        if (typeof ResizeObserver !== 'undefined' && !this.resizeObserver) {
-            this.resizeObserver = new ResizeObserver(() => {
-                this.updateResponsiveClasses();
-            });
-            this.resizeObserver.observe(this.containerEl);
-        }
-    }
-
-    // Update responsive classes by container width
-    private updateResponsiveClasses(): void {
-        const containerWidth = this.containerEl.offsetWidth;
-
-        // Fallback to window width if container width is 0
-        const effectiveWidth = containerWidth > 0 ? containerWidth : window.innerWidth;
-        const newBreakpoint = effectiveWidth > 768 ? 'desktop' : 'mobile';
-
-        // Only update if breakpoint actually changed
-        if (newBreakpoint !== this.currentBreakpoint) {
-            this.containerEl.removeClass('mobile', 'desktop');
-            this.containerEl.addClass(newBreakpoint);
-            this.currentBreakpoint = newBreakpoint;
-            this.handleBreakpointChange();
-        }
-    }
-
-    // Handle breakpoint changes
-    private handleBreakpointChange(): void {
-        if (!this.isInitialized) {
-            return;
-        }
-
-        const isDesktop = this.currentBreakpoint === 'desktop';
+        const isDesktop = newBreakpoint === 'desktop';
         const shouldBeOpen = isDesktop ? !this.plugin.settings.sidebarCollapsed : false;
 
         if (shouldBeOpen !== this.sidebarOpen) {
@@ -123,27 +89,9 @@ export class ViewRenderer {
         }
     }
 
-    // Force responsive update
-    private forceResponsiveUpdate(): void {
-        const containerWidth = this.containerEl.offsetWidth;
-        const effectiveWidth = containerWidth > 0 ? containerWidth : window.innerWidth;
-        const correctBreakpoint = effectiveWidth > 768 ? 'desktop' : 'mobile';
-
-        this.containerEl.removeClass('mobile', 'desktop');
-        this.containerEl.addClass(correctBreakpoint);
-
-        if (correctBreakpoint !== this.currentBreakpoint) {
-            this.currentBreakpoint = correctBreakpoint;
-            this.handleBreakpointChange();
-        }
-    }
-
-    // Cleanup ResizeObserver
+    // Cleanup
     public destroy(): void {
-        if (this.resizeObserver) {
-            this.resizeObserver.disconnect();
-            this.resizeObserver = null;
-        }
+        this.responsiveManager.destroy();
     }
 
     // Render complete view layout
@@ -165,10 +113,10 @@ export class ViewRenderer {
         this.containerEl.empty();
         const mainLayout = this.containerEl.createDiv('todo-txt-content');
 
-        // Force update to apply correct classes
-        this.forceResponsiveUpdate();
+        // Force responsive update
+        this.responsiveManager.forceUpdate();
 
-        // Apply sidebar state class on render
+        // Apply sidebar state class
         if (!this.sidebarOpen) {
             mainLayout.addClass('sidebar-collapsed');
         }
@@ -182,18 +130,18 @@ export class ViewRenderer {
             this.toggleSidebar();
         });
 
+        // Render sidebar
         this.projectsSidebar.render(mainLayout, allItems, filterState, pinnedProjects, allKnownProjects, file, this.sidebarOpen);
 
+        // Render main tasks area
         const tasksMain = mainLayout.createDiv('tasks-main');
-
-        // Apply sidebar state to tasks-main immediately
         if (!this.sidebarOpen) {
             tasksMain.addClass('sidebar-closed');
         }
 
         this.renderTasksSection(tasksMain, filteredItems, filterState);
 
-        // Restore scroll position
+        // Restore scroll positions
         requestAnimationFrame(() => {
             const sidebar = this.containerEl.querySelector('.projects-sidebar');
             if (sidebar) sidebar.scrollTop = sidebarScrollTop;
@@ -214,6 +162,7 @@ export class ViewRenderer {
         // Mark as initialized after first render
         if (!this.isInitialized) {
             this.isInitialized = true;
+            this.responsiveManager.setInitialized();
         }
     }
 
@@ -223,7 +172,7 @@ export class ViewRenderer {
         this.updateSidebarState();
 
         // Save state only on desktop
-        if (this.currentBreakpoint === 'desktop') {
+        if (this.responsiveManager.getCurrentBreakpoint() === 'desktop') {
             this.plugin.settings.sidebarCollapsed = !this.sidebarOpen;
             await this.plugin.saveSettings();
         }
@@ -242,7 +191,7 @@ export class ViewRenderer {
                 sidebar.removeClass('closed');
                 mainContent.removeClass('sidebar-closed');
                 todoContent?.removeClass('sidebar-collapsed');
-                if (this.currentBreakpoint === 'mobile') {
+                if (this.responsiveManager.getCurrentBreakpoint() === 'mobile') {
                     overlay?.addClass('visible');
                 }
             } else {

@@ -1,16 +1,22 @@
 import { TodoItem } from '../../types';
-import { DateUtils } from '../../utils/dateUtils';
-import { Icons, createSVGElement } from '../../utils/icons';
 import { TaskManager } from '../../managers/taskManager';
 import { ProjectManager } from '../../managers/projectManager';
+import { TaskContentRenderer } from './taskContentRenderer';
+import { TaskMetadataRenderer } from './taskMetadataRenderer';
 
 export class TaskItem {
+    private contentRenderer: TaskContentRenderer;
+    private metadataRenderer: TaskMetadataRenderer;
+
     constructor(
         private taskManager: TaskManager,
         private projectManager: ProjectManager,
         private filterManager: any,
         private onSearchTag: (tag: string) => void
-    ) { }
+    ) {
+        this.contentRenderer = new TaskContentRenderer(projectManager, onSearchTag);
+        this.metadataRenderer = new TaskMetadataRenderer(projectManager);
+    }
 
     // Render complete task item
     render(container: HTMLElement, item: TodoItem): void {
@@ -76,272 +82,68 @@ export class TaskItem {
         });
     }
 
+    private renderContent(container: HTMLElement, item: TodoItem): void {
+        const contentEl = container.createDiv('todo-content');
+        const mainLine = contentEl.createDiv('todo-main');
+
+        // Determine metadata presence
+        const dueMatch = item.description.match(/due:(\d{4}-\d{2}-\d{2})/);
+        const hasDueDate = dueMatch && !item.completed;
+        const hasDescriptionNotes = !!item.descriptionNotes;
+        const hasKeyValuePairs = Object.keys(item.keyValuePairs)
+            .filter(k => k !== 'pri' && k !== 'due').length > 0;
+
+        const isMobile = this.getContainerWidth() <= 768;
+        const isCompleted = item.completed;
+        const isArchived = item.projects.includes('Archived');
+
+        // Render description and optional notes
+        this.contentRenderer.renderDescription(mainLine, item);
+
+        // Inline projects for desktop without metadata
+        const shouldShowInlineProjects = !isCompleted && !isArchived && !hasDueDate &&
+            !hasDescriptionNotes && !hasKeyValuePairs && item.projects.length > 0 && !isMobile;
+
+        if (shouldShowInlineProjects) {
+            const descriptionLine = mainLine.querySelector('.todo-description-line');
+            if (descriptionLine) {
+                this.contentRenderer.renderInlineProjects(descriptionLine as HTMLElement, item.projects, item);
+            }
+        }
+
+        // Notes section
+        if (hasDescriptionNotes) {
+            this.contentRenderer.renderDescriptionNotes(mainLine, item.descriptionNotes || '');
+
+            if (!isCompleted && !isArchived && !hasDueDate && !hasKeyValuePairs &&
+                item.projects.length > 0 && !isMobile) {
+                const notesLine = mainLine.querySelector('.todo-description-notes-line');
+                if (notesLine) {
+                    this.contentRenderer.renderInlineProjects(notesLine as HTMLElement, item.projects, item);
+                }
+            }
+        }
+
+        // Metadata section
+        const needsMetadata = hasDueDate || hasKeyValuePairs || item.completionDate ||
+            (isCompleted && item.projects.length > 0) || (isArchived && item.projects.length > 0) ||
+            (isMobile && item.projects.length > 0);
+
+        if (needsMetadata) {
+            const shouldRenderProjectsInMeta = isCompleted || isArchived || hasDueDate ||
+                hasKeyValuePairs || isMobile;
+            this.metadataRenderer.render(contentEl, item, shouldRenderProjectsInMeta);
+        }
+    }
+
     private getContainerWidth(): number {
         const container = document.querySelector('.todo-txt-view');
         return container ? container.clientWidth : window.innerWidth;
     }
 
-    // Render task content and metadata
-    private renderContent(container: HTMLElement, item: TodoItem): void {
-        const contentEl = container.createDiv('todo-content');
-        const mainLine = contentEl.createDiv('todo-main');
-
-        // Determine what metadata exists
-        const dueMatch = item.description.match(/due:(\d{4}-\d{2}-\d{2})/);
-        const hasDueDate = dueMatch && !item.completed;
-        const hasDescriptionNotes = !!item.descriptionNotes;
-        const hasKeyValuePairs = Object.keys(item.keyValuePairs).filter(k => k !== 'pri' && k !== 'due').length > 0;
-
-        const isMobile = this.getContainerWidth() <= 768;
-
-        // Task state flags
-        const isCompleted = item.completed;
-        const isArchived = item.projects.includes('Archived');
-
-        // Main description line
-        const descriptionLine = mainLine.createDiv('todo-description-line');
-        const descriptionEl = descriptionLine.createDiv('todo-description');
-        this.renderFormattedDescription(descriptionEl, item);
-
-        // Show projects inline when appropriate (no metadata, desktop, active tasks)
-        if (!isCompleted && !isArchived && !hasDueDate && !hasDescriptionNotes && !hasKeyValuePairs && item.projects.length > 0 && !isMobile) {
-            this.renderInlineProjects(descriptionLine, item.projects, item);
-        }
-
-        // Description notes section
-        if (hasDescriptionNotes) {
-            const descriptionNotesLine = mainLine.createDiv('todo-description-notes-line');
-            const descriptionNotesEl = descriptionNotesLine.createDiv('task-description-notes');
-            this.renderFormattedDescriptionNotes(descriptionNotesEl, item.descriptionNotes || '');
-
-            if (!isCompleted && !isArchived && !hasDueDate && !hasKeyValuePairs && item.projects.length > 0 && !isMobile) {
-                this.renderInlineProjects(descriptionNotesLine, item.projects, item);
-            }
-        }
-
-        // Metadata section when needed
-        if (hasDueDate || hasKeyValuePairs || item.completionDate || (isCompleted && item.projects.length > 0) || (isArchived && item.projects.length > 0) || (isMobile && item.projects.length > 0)) {
-            const shouldRenderProjectsInMeta = isCompleted || isArchived || hasDueDate || hasKeyValuePairs || isMobile;
-            this.renderMetadata(contentEl, item, shouldRenderProjectsInMeta);
-        }
-    }
-
-    // Parse description into clickable elements
-    private renderFormattedDescription(container: HTMLElement, item: TodoItem): void {
-        let displayDescription = item.description;
-
-        // Hide priority for completed/archived tasks
-        if (item.completed || item.projects.includes('Archived')) {
-            displayDescription = displayDescription.replace(/\s+pri:[A-Z]\b/g, '').trim();
-        }
-
-        const parts = displayDescription.split(/(\s+)/);
-
-        parts.forEach(part => {
-            if (part.trim() === '') {
-                container.appendChild(document.createTextNode(part));
-            } else if (part.startsWith('+') && part.match(/^\+\w+/)) {
-                // Skip project tags (rendered separately)
-                return;
-            } else if (part.startsWith('@') && part.match(/^@\S+/)) {
-                // Render context
-                const contextEl = container.createSpan('context-tag');
-                contextEl.setText(part.substring(1));
-            } else if (part.startsWith('#')) {
-                // Clickable hashtag for search
-                const hashtagEl = container.createSpan('hashtag-tag');
-                hashtagEl.setText(part);
-                hashtagEl.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.onSearchTag(part);
-                });
-            } else if (part.includes(':') && !part.includes(' ') && !part.startsWith('http')) {
-                const [key, value] = part.split(':', 2);
-                if (key === 'rec') {
-                    return;
-                }
-                // Skip key:value pairs (rendered in metadata)
-                if (value && value.trim()) {
-                    return;
-                } else {
-                    container.appendChild(document.createTextNode(part));
-                }
-            } else if (part.match(/https?:\/\/[^\s]+/)) {
-                // Clickable external link
-                const linkEl = container.createEl('a', {
-                    href: part,
-                    text: part
-                });
-                linkEl.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    window.open(part, '_blank');
-                });
-            } else {
-                container.appendChild(document.createTextNode(part));
-            }
-        });
-    }
-
-    // Format description notes with links
-    private renderFormattedDescriptionNotes(container: HTMLElement, descriptionNotes: string): void {
-        const parts = descriptionNotes.split(/(\s+)/);
-
-        parts.forEach(part => {
-            if (part.match(/https?:\/\/[^\s]+/)) {
-                // Render clickable links
-                const linkEl = container.createEl('a', {
-                    href: part,
-                    text: part
-                });
-                linkEl.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    window.open(part, '_blank');
-                });
-            } else {
-                container.appendChild(document.createTextNode(part));
-            }
-        });
-    }
-
-    // Render projects inline with description
-    private renderInlineProjects(container: HTMLElement, projects: string[], item: TodoItem): void {
-        const inlineProjectsEl = container.createDiv('todo-projects-inline');
-        projects.forEach(project => {
-            const projectEl = inlineProjectsEl.createSpan('todo-project-meta');
-
-            const displayProject = this.getDisplayProject(project, item);
-            const textSpan = projectEl.createSpan('todo-project-text');
-            textSpan.setText(displayProject.replace(/_/g, ' '));
-
-            const iconSpan = projectEl.createSpan('todo-project-icon');
-            const icon = this.getProjectIcon(displayProject);
-
-            if (icon.includes('<svg')) {
-                const svgElement = createSVGElement(icon);
-                iconSpan.appendChild(svgElement);
-            } else {
-                iconSpan.setText(icon);
-            }
-        });
-    }
-
-    // Render task metadata section
-    private renderMetadata(container: HTMLElement, item: TodoItem, renderProjects: boolean = true): void {
-        const metaEl = container.createDiv('todo-meta');
-        const metaLeft = metaEl.createDiv('todo-meta-left');
-        const metaRight = metaEl.createDiv('todo-meta-right');
-
-        // Completion date for completed tasks
-        if (item.completed && item.completionDate) {
-            const formattedDate = DateUtils.formatDate(item.completionDate);
-            const completionDateEl = metaLeft.createSpan('todo-date completion-date');
-            completionDateEl.setText(formattedDate);
-        }
-
-        // Creation date for archived tasks
-        if (item.projects.includes('Archived') && !item.completed && item.creationDate) {
-            const formattedDate = DateUtils.formatDate(item.creationDate);
-            const creationDateEl = metaLeft.createSpan('todo-date creation-date');
-            creationDateEl.setText(formattedDate);
-        }
-
-        // Due date with status styling
-        const dueMatch = item.description.match(/due:(\d{4}-\d{2}-\d{2})/);
-        if (dueMatch && !item.completed && !item.projects.includes('Archived')) {
-            const dueDateValue = dueMatch[1];
-            const formattedDate = DateUtils.formatDate(dueDateValue);
-            const dueDateStatus = DateUtils.getDueDateStatus(dueDateValue);
-
-            const dueDateEl = metaLeft.createSpan('todo-due-date');
-            dueDateEl.appendText(formattedDate);
-
-            // Repeat icon for recurring tasks
-            const hasRecurrence = item.keyValuePairs.rec || item.description.includes('rec:');
-            if (hasRecurrence) {
-                const repeatIcon = dueDateEl.createSpan('repeat-icon');
-                const repeatSvg = createSVGElement(Icons.repeat);
-                repeatIcon.appendChild(repeatSvg);
-            }
-
-            if (dueDateStatus) {
-                dueDateEl.addClass(dueDateStatus);
-            }
-        }
-
-        // Generic completion status
-        if (item.completed && !item.completionDate) {
-            const completionDateEl = metaLeft.createSpan('todo-date completion-date');
-            completionDateEl.setText('Completed');
-        }
-
-        // Projects in metadata when needed
-        if (renderProjects && item.projects.length > 0) {
-            const projectsEl = metaRight.createDiv('todo-projects-meta');
-            item.projects.forEach(project => {
-                const projectEl = projectsEl.createSpan('todo-project-meta');
-
-                const displayProject = this.getDisplayProject(project, item);
-                const textSpan = projectEl.createSpan('todo-project-text');
-                textSpan.setText(displayProject.replace(/_/g, ' '));
-
-                const iconSpan = projectEl.createSpan('todo-project-icon');
-                const icon = this.getProjectIcon(displayProject);
-
-                if (icon.includes('<svg')) {
-                    const svgElement = createSVGElement(icon);
-                    iconSpan.appendChild(svgElement);
-                } else {
-                    iconSpan.setText(icon);
-                }
-            });
-        }
-
-        // Additional key:value pairs (excluding system keys)
-        const kvPairs = Object.entries(item.keyValuePairs).filter(([key]) =>
-            key !== 'pri' &&
-            key !== 'due' &&
-            key !== 'rec' &&
-            key !== 'origProj' &&
-            key !== '||https' &&
-            key !== '||http'
-        );
-
-        if (kvPairs.length > 0) {
-            const kvEl = metaLeft.createDiv('todo-kv');
-            kvPairs.forEach(([key, value]) => {
-                const kvPair = kvEl.createSpan('todo-kv-pair');
-                kvPair.setText(`${key}:${value}`);
-            });
-        }
-    }
-
-    // Get priority from active or completed task
     private getPriorityForDisplay(item: TodoItem): string | null {
         if (item.priority) return item.priority;
         if (item.completed && item.keyValuePairs.pri) return item.keyValuePairs.pri;
         return null;
-    }
-
-    // Get icon for project type
-    private getProjectIcon(project: string): string {
-        if (project === 'Inbox') {
-            return Icons.inbox;
-        } else if (project === 'Archived') {
-            return Icons.archived;
-        }
-
-        const customIcon = this.projectManager.getProjectIcon(project);
-        return customIcon || Icons.hash;
-    }
-
-    // Show original project name for archived tasks
-    private getDisplayProject(project: string, item: TodoItem): string {
-        if (project === 'Archived' && item.keyValuePairs.origProj) {
-            const originalProjects = item.keyValuePairs.origProj.split(',');
-            return originalProjects[0];
-        }
-        return project;
     }
 }
