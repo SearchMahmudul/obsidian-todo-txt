@@ -50,11 +50,69 @@ export class AddTaskModal extends Modal {
             () => this.close()
         );
 
-        // Initialize suggestion system
-        this.suggestionManager = new SuggestionManager(this.dataHandler, this.ui);
+        // Initialize suggestion system with project change callback
+        this.suggestionManager = new SuggestionManager(
+            this.dataHandler,
+            this.ui,
+            async (projectName: string) => {
+                const projectContexts = await this.getContextsForProject(projectName);
+                this.dataHandler.updateAvailableContexts(projectContexts);
+                this.suggestionManager.updateContextItems(projectContexts);
+            }
+        );
 
         // Set up input handling
         this.inputHandler = new TaskInputHandler(this.dataHandler, this.ui, this.suggestionManager);
+    }
+
+    // Get contexts for a specific project
+    private async getContextsForProject(projectName: string): Promise<string[]> {
+        try {
+            // Get default todo file
+            const files = this.app.vault.getFiles().filter(f => f.extension === 'txt');
+            if (files.length === 0) return this.dataHandler.availableContexts;
+
+            const file = files[0];
+            const content = await this.app.vault.read(file);
+            const lines = content.split('\n').filter(line => line.trim().length > 0);
+
+            const contextsSet = new Set<string>();
+
+            lines.forEach(line => {
+                // Skip completed tasks
+                if (line.trim().startsWith('x ')) {
+                    return;
+                }
+
+                // Check if line has project
+                if (line.includes(`+${projectName}`) || projectName === 'Inbox') {
+                    // Remove notes section
+                    let cleanLine = line;
+                    const notesIndex = cleanLine.indexOf('||');
+                    if (notesIndex !== -1) {
+                        cleanLine = cleanLine.substring(0, notesIndex).trim();
+                    }
+
+                    // Remove metadata
+                    cleanLine = cleanLine.replace(/^KATEX_INLINE_OPEN[A-Z]KATEX_INLINE_CLOSE\s+/, ''); // Priority
+                    cleanLine = cleanLine.replace(/^\d{4}-\d{2}-\d{2}\s+/, ''); // Date
+
+                    // Extract contexts at word boundaries only
+                    const contextMatches = cleanLine.match(/(?:^|\s)@(\S+)/g);
+                    if (contextMatches) {
+                        contextMatches.forEach(match => {
+                            const context = match.trim().substring(1);
+                            contextsSet.add(context);
+                        });
+                    }
+                }
+            });
+
+            return Array.from(contextsSet).sort();
+        } catch (error) {
+            console.error('Error fetching contexts for project:', error);
+            return this.dataHandler.availableContexts;
+        }
     }
 
     // Set up modal UI and event handlers
@@ -76,8 +134,11 @@ export class AddTaskModal extends Modal {
         });
 
         // Handle project selection
-        this.ui.onProjectChange((project: string) => {
+        this.ui.onProjectChange(async (project: string) => {
             this.dataHandler.selectedProject = project;
+            const projectContexts = await this.getContextsForProject(project);
+            this.dataHandler.updateAvailableContexts(projectContexts);
+            this.suggestionManager.updateContextItems(projectContexts);
         });
 
         // Handle priority changes

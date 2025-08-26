@@ -177,4 +177,8 @@ export class TaskDataHandler {
 
         return taskLine;
     }
+
+    updateAvailableContexts(newContexts: string[]): void {
+        this.availableContexts = newContexts;
+    }
 }

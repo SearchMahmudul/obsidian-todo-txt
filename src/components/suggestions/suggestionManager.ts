@@ -17,7 +17,8 @@ export class SuggestionManager {
 
     constructor(
         private dataHandler: TaskDataHandler,
-        private ui: TaskModalUI
+        private ui: TaskModalUI,
+        private onProjectChange?: (projectName: string) => Promise<void>
     ) {
         this.contextHandler = this.createContextHandler();
         this.priorityHandler = this.createPriorityHandler();
@@ -124,6 +125,13 @@ export class SuggestionManager {
                 // Set project in UI
                 this.dataHandler.selectedProject = project;
                 this.ui.updateProject(project);
+
+                // Trigger context update if callback provided (non-blocking)
+                if (this.onProjectChange) {
+                    this.onProjectChange(project).catch(error => {
+                        console.error('Error updating contexts for project:', error);
+                    });
+                }
 
                 input.setSelectionRange(symbolPosition, symbolPosition);
                 input.focus();
@@ -309,6 +317,14 @@ export class SuggestionManager {
                 this.dataHandler.taskDescription = input.value;
                 this.dataHandler.selectedProject = option;
                 this.ui.updateProject(option);
+
+                // Trigger context update if callback provided (non-blocking)
+                if (this.onProjectChange) {
+                    this.onProjectChange(option).catch(error => {
+                        console.error('Error updating contexts for project:', error);
+                    });
+                }
+
                 input.setSelectionRange(symbolPosition, symbolPosition);
                 input.focus();
                 break;
@@ -382,6 +398,15 @@ export class SuggestionManager {
         if (this.mainMenuMode) {
             this.mainMenuMode = '';
             this.mainMenuHandler.updateItems(['Date', 'Priority', 'Project', 'Context']);
+        }
+    }
+
+    // Update context handler with new items
+    updateContextItems(newContexts: string[]): void {
+        this.contextHandler.updateItems(newContexts);
+
+        if (this.mainMenuMode === 'Context') {
+            this.mainMenuHandler.updateItems(newContexts);
         }
     }
 

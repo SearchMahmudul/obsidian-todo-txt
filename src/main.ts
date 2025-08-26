@@ -203,6 +203,11 @@ export default class TodoTxtPlugin extends Plugin {
             const lines = content.split('\n').filter(line => line.trim().length > 0);
 
             lines.forEach(line => {
+                // Skip completed tasks
+                if (line.trim().startsWith('x ')) {
+                    return;
+                }
+
                 const contextsFromLine = this.extractContextsFromLine(line);
                 contextsFromLine.forEach(context => {
                     contexts.add(context);
@@ -227,20 +232,19 @@ export default class TodoTxtPlugin extends Plugin {
             cleanLine = cleanLine.substring(0, notesIndex).trim();
         }
 
-        // Remove todo metadata
-        cleanLine = cleanLine.replace(/^x\s+/, ''); // Remove completion marker
-        cleanLine = cleanLine.replace(/^KATEX_INLINE_OPEN[A-Z]KATEX_INLINE_CLOSE\s+/, ''); // Remove priority
-        cleanLine = cleanLine.replace(/^\d{4}-\d{2}-\d{2}\s+/, ''); // Remove creation date
-        cleanLine = cleanLine.replace(/^\d{4}-\d{2}-\d{2}\s+\d{4}-\d{2}-\d{2}\s+/, ''); // Remove completion and creation dates
+        // Remove metadata
+        cleanLine = cleanLine.replace(/^x\s+/, ''); // Completion marker
+        cleanLine = cleanLine.replace(/^KATEX_INLINE_OPEN[A-Z]KATEX_INLINE_CLOSE\s+/, ''); // Priority
+        cleanLine = cleanLine.replace(/^\d{4}-\d{2}-\d{2}\s+/, ''); // Creation date
+        cleanLine = cleanLine.replace(/^\d{4}-\d{2}-\d{2}\s+\d{4}-\d{2}-\d{2}\s+/, ''); // Both dates
 
-        // Find context tokens
-        const tokens = cleanLine.split(/\s+/);
-
-        for (const token of tokens) {
-            if (/^@\S+$/.test(token)) {
-                const context = token.substring(1);
+        // Find contexts at word boundaries only
+        const contextMatches = cleanLine.match(/(?:^|\s)@(\S+)/g);
+        if (contextMatches) {
+            contextMatches.forEach(match => {
+                const context = match.trim().substring(1);
                 contexts.push(context);
-            }
+            });
         }
 
         return contexts;
