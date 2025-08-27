@@ -9,6 +9,7 @@ import { ProjectsSidebar } from '../components/ui/projectsSidebar';
 import { ResponsiveManager, Breakpoint } from '../utils/responsiveManager';
 import { TFile } from 'obsidian';
 import TodoTxtPlugin from '../main';
+import { App } from 'obsidian';
 
 export class ViewRenderer {
     // UI component renderers
@@ -53,7 +54,8 @@ export class ViewRenderer {
             taskManager,
             projectManager,
             filterManager,
-            (tag: string) => this.searchForTag(tag)
+            (tag: string) => this.searchForTag(tag),
+            this.plugin.app
         );
 
         this.taskControls = new TaskControls(

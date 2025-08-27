@@ -3,6 +3,8 @@ import { MenuSuggestions } from './menuSuggestions';
 import { TaskDataHandler } from '../modals/taskDataHandler';
 import { TaskModalUI } from '../modals/taskModalUI';
 import { calculateDueDate, getRepeatSyntax } from '../../utils/dateUtils';
+import { WikiLinkHandler } from './wikiLinkHandler';
+import { App } from 'obsidian';
 
 export class SuggestionManager {
     contextHandler: SuggestionHandler;
@@ -10,19 +12,22 @@ export class SuggestionManager {
     projectHandler: SuggestionHandler;
     dueDateHandler: SuggestionHandler;
     mainMenuHandler: MenuSuggestions;
+    wikiLinkHandler: WikiLinkHandler;
 
-    private activeHandler: SuggestionHandler | null = null;
+    private activeHandler: SuggestionHandler | WikiLinkHandler | null = null;
     private isInRepeatMode: boolean = false;
 
     constructor(
         private dataHandler: TaskDataHandler,
         private ui: TaskModalUI,
+        private app: App,
         private onProjectChange?: (projectName: string) => Promise<void>
     ) {
         this.contextHandler = this.createContextHandler();
         this.priorityHandler = this.createPriorityHandler();
         this.projectHandler = this.createProjectHandler();
         this.dueDateHandler = this.createDueDateHandler();
+        this.wikiLinkHandler = new WikiLinkHandler(app);
 
         // Main menu handler with its own complex logic
         this.mainMenuHandler = new MenuSuggestions(
@@ -213,11 +218,11 @@ export class SuggestionManager {
         return orderedProjects;
     }
 
-    getActiveHandler(): SuggestionHandler | null {
+    getActiveHandler(): SuggestionHandler | WikiLinkHandler | null {
         return this.activeHandler;
     }
 
-    setActiveHandler(handler: SuggestionHandler | null): void {
+    setActiveHandler(handler: SuggestionHandler | WikiLinkHandler | null): void {
         this.activeHandler = handler;
     }
 
@@ -243,6 +248,7 @@ export class SuggestionManager {
         this.projectHandler.cleanup();
         this.dueDateHandler.cleanup();
         this.mainMenuHandler.cleanup();
+        this.wikiLinkHandler.cleanup();
         this.resetModes();
     }
 }

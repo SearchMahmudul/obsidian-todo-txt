@@ -78,16 +78,6 @@ export class TaskModalElements {
         descriptionInput.setAttribute('placeholder', 'Description');
         descriptionInput.value = this.dataHandler.taskDescriptionNotes || '';
 
-        // Handle Enter for notes
-        descriptionInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                if (!this.isMobile()) {
-                    e.preventDefault();
-                    this.onSubmit();
-                }
-            }
-        });
-
         return descriptionInput;
     }
 

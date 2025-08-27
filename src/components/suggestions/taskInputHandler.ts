@@ -19,6 +19,9 @@ export class TaskInputHandler {
             this.ui.updatePriority(this.dataHandler.priority);
         }
 
+        // Check for WikiLink trigger [[
+        const wikiLinkPosition = value.lastIndexOf('[[', cursorPosition - 1);
+
         // Find trigger symbols before cursor
         const atPosition = value.lastIndexOf('@', cursorPosition - 1);
         const exclamationPosition = value.lastIndexOf('!', cursorPosition - 1);
@@ -28,11 +31,12 @@ export class TaskInputHandler {
 
         // Sort by closest to cursor
         const positions = [
-            { pos: atPosition, handler: this.suggestionManager.contextHandler, symbol: '@' },
-            { pos: exclamationPosition, handler: this.suggestionManager.priorityHandler, symbol: '!' },
-            { pos: plusPosition, handler: this.suggestionManager.projectHandler, symbol: '+' },
-            { pos: asteriskPosition, handler: this.suggestionManager.dueDateHandler, symbol: '*' },
-            { pos: slashPosition, handler: this.suggestionManager.mainMenuHandler, symbol: '/' }
+            { pos: wikiLinkPosition, handler: this.suggestionManager.wikiLinkHandler, symbol: '[[', length: 2 },
+            { pos: atPosition, handler: this.suggestionManager.contextHandler, symbol: '@', length: 1 },
+            { pos: exclamationPosition, handler: this.suggestionManager.priorityHandler, symbol: '!', length: 1 },
+            { pos: plusPosition, handler: this.suggestionManager.projectHandler, symbol: '+', length: 1 },
+            { pos: asteriskPosition, handler: this.suggestionManager.dueDateHandler, symbol: '*', length: 1 },
+            { pos: slashPosition, handler: this.suggestionManager.mainMenuHandler, symbol: '/', length: 1 }
         ].filter(p => p.pos !== -1)
             .sort((a, b) => b.pos - a.pos);
 
@@ -50,11 +54,19 @@ export class TaskInputHandler {
 
         // Show suggestions for closest trigger
         if (positions.length > 0 && positions[0].pos < cursorPosition) {
-            const { pos, handler, symbol } = positions[0];
-            const searchTerm = value.substring(pos + 1, cursorPosition);
-            const hasSpaceAfter = searchTerm.includes(' ');
+            const { pos, handler, symbol, length } = positions[0];
+            const searchTerm = value.substring(pos + length, cursorPosition);
 
-            // Only show if no space after trigger
+            // Check if WikiLink is already closed
+            if (symbol === '[[' && value.substring(pos, cursorPosition).includes(']]')) {
+                this.hideAllSuggestions();
+                this.suggestionManager.setActiveHandler(null);
+                return;
+            }
+
+            const hasSpaceAfter = searchTerm.includes(' ') && symbol !== '[[';
+
+            // Show only if no space after trigger (except WikiLinks)
             if (!hasSpaceAfter) {
                 this.hideAllSuggestionsExcept(handler);
 
@@ -125,13 +137,14 @@ export class TaskInputHandler {
 
     // Hide all suggestions except the active one
     private hideAllSuggestionsExcept(exceptHandler: any): void {
-        const { contextHandler, priorityHandler, projectHandler, dueDateHandler, mainMenuHandler } = this.suggestionManager;
+        const { contextHandler, priorityHandler, projectHandler, dueDateHandler, mainMenuHandler, wikiLinkHandler } = this.suggestionManager;
 
         if (exceptHandler !== contextHandler) contextHandler.hideSuggestions();
         if (exceptHandler !== priorityHandler) priorityHandler.hideSuggestions();
         if (exceptHandler !== projectHandler) projectHandler.hideSuggestions();
         if (exceptHandler !== dueDateHandler) dueDateHandler.hideSuggestions();
         if (exceptHandler !== mainMenuHandler) mainMenuHandler.hideSuggestions();
+        if (exceptHandler !== wikiLinkHandler) wikiLinkHandler.hideSuggestions();
     }
 
     // Hide all suggestion dropdowns
@@ -141,5 +154,6 @@ export class TaskInputHandler {
         this.suggestionManager.projectHandler.hideSuggestions();
         this.suggestionManager.dueDateHandler.hideSuggestions();
         this.suggestionManager.mainMenuHandler.hideSuggestions();
+        this.suggestionManager.wikiLinkHandler.hideSuggestions();
     }
 }

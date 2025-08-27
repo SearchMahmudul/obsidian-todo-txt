@@ -3,6 +3,7 @@ import { TaskManager } from '../../managers/taskManager';
 import { ProjectManager } from '../../managers/projectManager';
 import { TaskContentRenderer } from './taskContentRenderer';
 import { TaskMetadataRenderer } from './taskMetadataRenderer';
+import { App } from 'obsidian';
 
 export class TaskItem {
     private contentRenderer: TaskContentRenderer;
@@ -12,9 +13,10 @@ export class TaskItem {
         private taskManager: TaskManager,
         private projectManager: ProjectManager,
         private filterManager: any,
-        private onSearchTag: (tag: string) => void
+        private onSearchTag: (tag: string) => void,
+        private app: App
     ) {
-        this.contentRenderer = new TaskContentRenderer(projectManager, onSearchTag);
+        this.contentRenderer = new TaskContentRenderer(projectManager, onSearchTag, app);
         this.metadataRenderer = new TaskMetadataRenderer(projectManager);
     }
 

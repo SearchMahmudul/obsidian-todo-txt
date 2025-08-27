@@ -205,4 +205,26 @@ export class TaskModalUI {
     getTaskInputElement(): HTMLTextAreaElement | null {
         return this.taskDescriptionInput;
     }
+
+    // Notes keydown handler  
+    onTaskDescriptionNotesKeyDown(handler: (e: KeyboardEvent) => void): void {
+        this.taskDescriptionNotes?.addEventListener('keydown', handler);
+    }
+
+    // Notes keyup handler  
+    onTaskDescriptionNotesKeyUp(handler: (e: KeyboardEvent) => void): void {
+        this.taskDescriptionNotes?.addEventListener('keyup', handler);
+    }
+
+    // Notes input change with cursor position
+    onTaskDescriptionNotesInputChange(handler: (value: string, cursorPosition: number) => void): void {
+        this.taskDescriptionNotes?.addEventListener('input', (e) => {
+            const target = e.target as HTMLTextAreaElement;
+            handler(target.value, target.selectionStart || 0);
+        });
+    }
+
+    getTaskNotesInputElement(): HTMLTextAreaElement | null {
+        return this.taskDescriptionNotes;
+    }
 }

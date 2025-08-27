@@ -10,6 +10,7 @@ export class AddTaskModal extends Modal {
     private ui: TaskModalUI;
     private dataHandler: TaskDataHandler;
     private suggestionManager: SuggestionManager;
+    private notesSuggestionManager: SuggestionManager;
     private inputHandler: TaskInputHandler;
     private onSubmit: (taskLine: string) => void;
     private onDelete?: () => void;
@@ -50,14 +51,27 @@ export class AddTaskModal extends Modal {
             () => this.close()
         );
 
-        // Initialize suggestion system with project change callback
+        // Initialize suggestions with project change callback
         this.suggestionManager = new SuggestionManager(
             this.dataHandler,
             this.ui,
+            this.app,
             async (projectName: string) => {
                 const projectContexts = await this.getContextsForProject(projectName);
                 this.dataHandler.updateAvailableContexts(projectContexts);
                 this.suggestionManager.updateContextItems(projectContexts);
+            }
+        );
+
+        // Initialize notes suggestions
+        this.notesSuggestionManager = new SuggestionManager(
+            this.dataHandler,
+            this.ui,
+            this.app,
+            async (projectName: string) => {
+                const projectContexts = await this.getContextsForProject(projectName);
+                this.dataHandler.updateAvailableContexts(projectContexts);
+                this.notesSuggestionManager.updateContextItems(projectContexts);
             }
         );
 
@@ -157,6 +171,31 @@ export class AddTaskModal extends Modal {
             this.dataHandler.taskDescriptionNotes = value;
         });
 
+        // Handle notes input changes
+        this.ui.onTaskDescriptionNotesInputChange((value: string, cursorPosition: number) => {
+            this.dataHandler.taskDescriptionNotes = value;
+            this.handleNotesInputChange(value, cursorPosition);
+        });
+
+        // Handle notes keyboard events
+        this.ui.onTaskDescriptionNotesKeyDown((e: KeyboardEvent) => {
+            if (this.handleNotesKeyDown(e)) {
+                return;
+            }
+
+            if (e.key === 'Enter' && !e.shiftKey) {
+                const isMobile = window.innerWidth <= 768;
+                if (!isMobile) {
+                    e.preventDefault();
+                    this.submitTask();
+                }
+            }
+        });
+
+        this.ui.onTaskDescriptionNotesKeyUp((e: KeyboardEvent) => {
+            this.handleNotesKeyUp(e);
+        });
+
         // Focus input after render
         setTimeout(() => this.ui.focusInput(), 100);
     }
@@ -170,9 +209,69 @@ export class AddTaskModal extends Modal {
         }
     }
 
+    // Handle notes input for WikiLink suggestions
+    private handleNotesInputChange(value: string, cursorPosition: number): void {
+        // Check for WikiLink trigger [[
+        const wikiLinkPosition = value.lastIndexOf('[[', cursorPosition - 1);
+
+        if (wikiLinkPosition !== -1 && wikiLinkPosition < cursorPosition) {
+            const searchTerm = value.substring(wikiLinkPosition + 2, cursorPosition);
+
+            // Check if WikiLink already closed
+            if (value.substring(wikiLinkPosition, cursorPosition).includes(']]')) {
+                this.notesSuggestionManager.wikiLinkHandler.hideSuggestions();
+                return;
+            }
+
+            // Show only if no space after [[ (spaces allowed in search)
+            const notesInput = this.ui.getTaskNotesInputElement();
+            if (notesInput) {
+                this.notesSuggestionManager.wikiLinkHandler.showSuggestions(
+                    searchTerm.toLowerCase(),
+                    notesInput,
+                    cursorPosition
+                );
+            }
+        } else {
+            this.notesSuggestionManager.wikiLinkHandler.hideSuggestions();
+        }
+    }
+
+    // Handle notes keyboard navigation
+    private handleNotesKeyDown(e: KeyboardEvent): boolean {
+        if (this.notesSuggestionManager.wikiLinkHandler.handleKeyNavigation(e)) {
+            return true;
+        }
+        return false;
+    }
+
+    // Handle notes keyup for WikiLink trigger
+    private handleNotesKeyUp(e: KeyboardEvent): void {
+        if (e.key === '[') {
+            setTimeout(() => {
+                const notesInput = this.ui.getTaskNotesInputElement();
+                if (notesInput) {
+                    const cursorPosition = notesInput.selectionStart || 0;
+                    const value = notesInput.value;
+
+                    // Check if [[ just typed
+                    const wikiLinkPosition = value.lastIndexOf('[[', cursorPosition - 1);
+                    if (wikiLinkPosition !== -1 && wikiLinkPosition === cursorPosition - 2) {
+                        this.notesSuggestionManager.wikiLinkHandler.showSuggestions(
+                            '',
+                            notesInput,
+                            cursorPosition
+                        );
+                    }
+                }
+            }, 0);
+        }
+    }
+
     // Clean up modal resources
     onClose() {
         this.contentEl.empty();
         this.suggestionManager.cleanup();
+        this.notesSuggestionManager.cleanup();
     }
 }

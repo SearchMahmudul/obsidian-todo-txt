@@ -1,11 +1,13 @@
 import { TodoItem } from '../../types';
 import { ProjectManager } from '../../managers/projectManager';
 import { Icons, createSVGElement } from '../../utils/icons';
+import { App } from 'obsidian';
 
 export class TaskContentRenderer {
     constructor(
         private projectManager: ProjectManager,
-        private onSearchTag: (tag: string) => void
+        private onSearchTag: (tag: string) => void,
+        private app: App
     ) { }
 
     // Render main description
@@ -52,7 +54,35 @@ export class TaskContentRenderer {
             displayDescription = displayDescription.replace(/\s+pri:[A-Z]\b/g, '').trim();
         }
 
-        const parts = displayDescription.split(/(\s+)/);
+        // Handle WikiLinks
+        const wikiLinkRegex = /\[\[([^\]]+)\]\]/g;
+        let lastIndex = 0;
+        let match;
+
+        while ((match = wikiLinkRegex.exec(displayDescription)) !== null) {
+            // Add text before WikiLink
+            const beforeText = displayDescription.substring(lastIndex, match.index);
+            this.renderTextPart(container, beforeText);
+
+            // Create WikiLink element
+            const linkText = match[1];
+            const linkEl = container.createSpan('wiki-link');
+            linkEl.setText(linkText);
+            linkEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.openWikiLink(linkText);
+            });
+
+            lastIndex = match.index + match[0].length;
+        }
+
+        // Add remaining text
+        const remainingText = displayDescription.substring(lastIndex);
+        this.renderTextPart(container, remainingText);
+    }
+
+    private renderTextPart(container: HTMLElement, text: string): void {
+        const parts = text.split(/(\s+)/);
 
         parts.forEach(part => {
             if (part.trim() === '') {
@@ -100,12 +130,47 @@ export class TaskContentRenderer {
         });
     }
 
+    private openWikiLink(linkText: string): void {
+        const file = this.app.metadataCache.getFirstLinkpathDest(linkText, '');
+        if (file) {
+            this.app.workspace.getLeaf(false).openFile(file);
+        }
+    }
+
     private renderFormattedNotes(container: HTMLElement, notes: string): void {
-        const parts = notes.split(/(\s+)/);
+        // Handle WikiLinks in notes
+        const wikiLinkRegex = /\[\[([^\]]+)\]\]/g;
+        let lastIndex = 0;
+        let match;
+
+        while ((match = wikiLinkRegex.exec(notes)) !== null) {
+            // Add text before WikiLink
+            const beforeText = notes.substring(lastIndex, match.index);
+            this.renderNotesTextPart(container, beforeText);
+
+            // Create WikiLink element
+            const linkText = match[1];
+            const linkEl = container.createSpan('wiki-link');
+            linkEl.setText(linkText);
+            linkEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.openWikiLink(linkText);
+            });
+
+            lastIndex = match.index + match[0].length;
+        }
+
+        // Add remaining text
+        const remainingText = notes.substring(lastIndex);
+        this.renderNotesTextPart(container, remainingText);
+    }
+
+    private renderNotesTextPart(container: HTMLElement, text: string): void {
+        const parts = text.split(/(\s+)/);
 
         parts.forEach(part => {
             if (part.match(/https?:\/\/[^\s]+/)) {
-                // Clickable link
+                // External link
                 const linkEl = container.createEl('a', {
                     href: part,
                     text: part
