@@ -26,7 +26,7 @@ export class TaskService {
                 let newTaskLine = item.raw.replace(/due:\d{4}-\d{2}-\d{2}/, `due:${nextDue}`);
                 newTaskLine = newTaskLine.replace(/^x\s+\d{4}-\d{2}-\d{2}\s+/, '');
 
-                await this.fileService.appendTaskLine(file, newTaskLine);
+                await this.fileService.prependTaskLine(file, newTaskLine);
             }
         }
 
@@ -127,7 +127,7 @@ export class TaskService {
 
     // Add new task
     async addNewTask(file: TFile, taskLine: string): Promise<void> {
-        await this.fileService.appendTaskLine(file, taskLine);
+        await this.fileService.prependTaskLine(file, taskLine);
     }
 
     // Move task from archived back to original project

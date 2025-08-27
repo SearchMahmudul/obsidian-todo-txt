@@ -163,7 +163,7 @@ export default class TodoTxtPlugin extends Plugin {
     private async addTaskToDefaultFile(taskLine: string): Promise<void> {
         const defaultFile = await this.getDefaultTodoFile();
         const currentContent = await this.app.vault.read(defaultFile);
-        const newContent = currentContent ? `${currentContent}\n${taskLine}` : taskLine;
+        const newContent = currentContent ? `${taskLine}\n${currentContent}` : taskLine;
         await this.app.vault.modify(defaultFile, newContent);
 
         // Extract and save new projects from task

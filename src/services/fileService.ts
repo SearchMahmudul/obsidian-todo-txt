@@ -33,7 +33,7 @@ export class FileService {
     }
 
     // Add new task line to file
-    async appendTaskLine(file: TFile, taskLine: string): Promise<void> {
+    async prependTaskLine(file: TFile, taskLine: string): Promise<void> {
         const currentContent = await this.readFile(file);
 
         if (!currentContent.trim()) {
@@ -42,15 +42,15 @@ export class FileService {
         }
 
         const lines = currentContent.split('\n');
-        const lastLine = lines[lines.length - 1].trim();
+        const firstLine = lines[0].trim();
 
         // Extract dates from both lines
-        const lastDate = this.extractCreationDate(lastLine);
+        const firstDate = this.extractCreationDate(firstLine);
         const newDate = this.extractCreationDate(taskLine);
 
         // Add line break if different dates
-        const separator = (lastDate && newDate && lastDate !== newDate) ? '\n\n' : '\n';
-        const newContent = `${currentContent}${separator}${taskLine}`;
+        const separator = (firstDate && newDate && firstDate !== newDate) ? '\n\n' : '\n';
+        const newContent = `${taskLine}${separator}${currentContent}`;
 
         await this.writeFile(file, newContent);
     }
