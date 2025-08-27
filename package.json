@@ -1,6 +1,6 @@
 {
 	"name": "todo-txt",
-	"version": "1.0.2",
+	"version": "1.0.3",
 	"description": "Powerful yet simple task management in the portable Todo.txt format, with smart filtering and a modern interface.",
 	"main": "main.js",
 	"scripts": {

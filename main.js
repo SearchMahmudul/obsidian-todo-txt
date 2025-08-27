@@ -1,5 +1,5 @@
 /**
-	Todo.txt v1.0.2
+	Todo.txt v1.0.3
 	@author Mahmudul
 	@url https://github.com/SearchMahmudul
 **/
@@ -28,7 +28,7 @@ __export(main_exports, {
   default: () => TodoTxtPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian7 = require("obsidian");
+var import_obsidian8 = require("obsidian");
 
 // src/types.ts
 var DEFAULT_SETTINGS = {
@@ -164,6 +164,168 @@ function createSVGElement(svgString) {
   return svgElement;
 }
 
+// src/components/ui/taskContentRenderer.ts
+var TaskContentRenderer = class {
+  constructor(projectManager, onSearchTag, app) {
+    this.projectManager = projectManager;
+    this.onSearchTag = onSearchTag;
+    this.app = app;
+  }
+  // Render main description
+  renderDescription(container, item) {
+    const descriptionLine = container.createDiv("todo-description-line");
+    const descriptionEl = descriptionLine.createDiv("todo-description");
+    this.renderFormattedDescription(descriptionEl, item);
+  }
+  // Render description notes
+  renderDescriptionNotes(container, notes) {
+    const notesLine = container.createDiv("todo-description-notes-line");
+    const notesEl = notesLine.createDiv("task-description-notes");
+    this.renderFormattedNotes(notesEl, notes);
+  }
+  // Render inline project tags
+  renderInlineProjects(container, projects, item) {
+    const inlineProjectsEl = container.createDiv("todo-projects-inline");
+    projects.forEach((project) => {
+      const projectEl = inlineProjectsEl.createSpan("todo-project-meta");
+      const displayProject = this.getDisplayProject(project, item);
+      const textSpan = projectEl.createSpan("todo-project-text");
+      textSpan.setText(displayProject.replace(/_/g, " "));
+      const iconSpan = projectEl.createSpan("todo-project-icon");
+      const icon = this.getProjectIcon(displayProject);
+      if (icon.includes("<svg")) {
+        const svgElement = createSVGElement(icon);
+        iconSpan.appendChild(svgElement);
+      } else {
+        iconSpan.setText(icon);
+      }
+    });
+  }
+  renderFormattedDescription(container, item) {
+    let displayDescription = item.description;
+    if (item.completed || item.projects.includes("Archived")) {
+      displayDescription = displayDescription.replace(/\s+pri:[A-Z]\b/g, "").trim();
+    }
+    const wikiLinkRegex = /\[\[([^\]]+)\]\]/g;
+    let lastIndex = 0;
+    let match;
+    while ((match = wikiLinkRegex.exec(displayDescription)) !== null) {
+      const beforeText = displayDescription.substring(lastIndex, match.index);
+      this.renderTextPart(container, beforeText);
+      const linkText = match[1];
+      const linkEl = container.createSpan("wiki-link");
+      linkEl.setText(linkText);
+      linkEl.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.openWikiLink(linkText);
+      });
+      lastIndex = match.index + match[0].length;
+    }
+    const remainingText = displayDescription.substring(lastIndex);
+    this.renderTextPart(container, remainingText);
+  }
+  renderTextPart(container, text) {
+    const parts = text.split(/(\s+)/);
+    parts.forEach((part) => {
+      if (part.trim() === "") {
+        container.appendChild(document.createTextNode(part));
+      } else if (part.startsWith("+") && part.match(/^\+\w+/)) {
+        return;
+      } else if (part.startsWith("@") && part.match(/^@\S+/)) {
+        const contextEl = container.createSpan("context-tag");
+        contextEl.setText(part.substring(1));
+      } else if (part.startsWith("#")) {
+        const hashtagEl = container.createSpan("hashtag-tag");
+        hashtagEl.setText(part);
+        hashtagEl.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.onSearchTag(part);
+        });
+      } else if (part.includes(":") && !part.includes(" ") && !part.startsWith("http")) {
+        const [key, value] = part.split(":", 2);
+        if (key === "rec") {
+          return;
+        }
+        if (value && value.trim()) {
+          return;
+        } else {
+          container.appendChild(document.createTextNode(part));
+        }
+      } else if (part.match(/https?:\/\/[^\s]+/)) {
+        const linkEl = container.createEl("a", {
+          href: part,
+          text: part
+        });
+        linkEl.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          window.open(part, "_blank");
+        });
+      } else {
+        container.appendChild(document.createTextNode(part));
+      }
+    });
+  }
+  openWikiLink(linkText) {
+    const file = this.app.metadataCache.getFirstLinkpathDest(linkText, "");
+    if (file) {
+      this.app.workspace.getLeaf(false).openFile(file);
+    }
+  }
+  renderFormattedNotes(container, notes) {
+    const wikiLinkRegex = /\[\[([^\]]+)\]\]/g;
+    let lastIndex = 0;
+    let match;
+    while ((match = wikiLinkRegex.exec(notes)) !== null) {
+      const beforeText = notes.substring(lastIndex, match.index);
+      this.renderNotesTextPart(container, beforeText);
+      const linkText = match[1];
+      const linkEl = container.createSpan("wiki-link");
+      linkEl.setText(linkText);
+      linkEl.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.openWikiLink(linkText);
+      });
+      lastIndex = match.index + match[0].length;
+    }
+    const remainingText = notes.substring(lastIndex);
+    this.renderNotesTextPart(container, remainingText);
+  }
+  renderNotesTextPart(container, text) {
+    const parts = text.split(/(\s+)/);
+    parts.forEach((part) => {
+      if (part.match(/https?:\/\/[^\s]+/)) {
+        const linkEl = container.createEl("a", {
+          href: part,
+          text: part
+        });
+        linkEl.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          window.open(part, "_blank");
+        });
+      } else {
+        container.appendChild(document.createTextNode(part));
+      }
+    });
+  }
+  getProjectIcon(project) {
+    if (project === "Inbox")
+      return Icons.inbox;
+    if (project === "Archived")
+      return Icons.archived;
+    const customIcon = this.projectManager.getProjectIcon(project);
+    return customIcon || Icons.hash;
+  }
+  getDisplayProject(project, item) {
+    if (project === "Archived" && item.keyValuePairs.origProj) {
+      const originalProjects = item.keyValuePairs.origProj.split(",");
+      return originalProjects[0];
+    }
+    return project;
+  }
+};
+
 // src/utils/dateUtils.ts
 var DateUtils = class {
   // Format date for display
@@ -266,13 +428,111 @@ function getRepeatSyntax(option) {
   }
 }
 
+// src/components/ui/taskMetadataRenderer.ts
+var TaskMetadataRenderer = class {
+  constructor(projectManager) {
+    this.projectManager = projectManager;
+  }
+  // Render metadata section
+  render(container, item, renderProjects = true) {
+    const metaEl = container.createDiv("todo-meta");
+    const metaLeft = metaEl.createDiv("todo-meta-left");
+    const metaRight = metaEl.createDiv("todo-meta-right");
+    this.renderDates(metaLeft, item);
+    this.renderKeyValuePairs(metaLeft, item);
+    if (renderProjects && item.projects.length > 0) {
+      this.renderProjects(metaRight, item);
+    }
+  }
+  renderDates(container, item) {
+    if (item.completed && item.completionDate) {
+      const formattedDate = DateUtils.formatDate(item.completionDate);
+      const completionDateEl = container.createSpan("todo-date completion-date");
+      completionDateEl.setText(formattedDate);
+    }
+    if (item.projects.includes("Archived") && !item.completed && item.creationDate) {
+      const formattedDate = DateUtils.formatDate(item.creationDate);
+      const creationDateEl = container.createSpan("todo-date creation-date");
+      creationDateEl.setText(formattedDate);
+    }
+    const dueMatch = item.description.match(/due:(\d{4}-\d{2}-\d{2})/);
+    if (dueMatch && !item.completed && !item.projects.includes("Archived")) {
+      const dueDateValue = dueMatch[1];
+      const formattedDate = DateUtils.formatDate(dueDateValue);
+      const dueDateStatus = DateUtils.getDueDateStatus(dueDateValue);
+      const dueDateEl = container.createSpan("todo-due-date");
+      dueDateEl.appendText(formattedDate);
+      const hasRecurrence = item.keyValuePairs.rec || item.description.includes("rec:");
+      if (hasRecurrence) {
+        const repeatIcon = dueDateEl.createSpan("repeat-icon");
+        const repeatSvg = createSVGElement(Icons.repeat);
+        repeatIcon.appendChild(repeatSvg);
+      }
+      if (dueDateStatus) {
+        dueDateEl.addClass(dueDateStatus);
+      }
+    }
+    if (item.completed && !item.completionDate) {
+      const completionDateEl = container.createSpan("todo-date completion-date");
+      completionDateEl.setText("Completed");
+    }
+  }
+  renderProjects(container, item) {
+    const projectsEl = container.createDiv("todo-projects-meta");
+    item.projects.forEach((project) => {
+      const projectEl = projectsEl.createSpan("todo-project-meta");
+      const displayProject = this.getDisplayProject(project, item);
+      const textSpan = projectEl.createSpan("todo-project-text");
+      textSpan.setText(displayProject.replace(/_/g, " "));
+      const iconSpan = projectEl.createSpan("todo-project-icon");
+      const icon = this.getProjectIcon(displayProject);
+      if (icon.includes("<svg")) {
+        const svgElement = createSVGElement(icon);
+        iconSpan.appendChild(svgElement);
+      } else {
+        iconSpan.setText(icon);
+      }
+    });
+  }
+  renderKeyValuePairs(container, item) {
+    const kvPairs = Object.entries(item.keyValuePairs).filter(
+      ([key]) => key !== "pri" && key !== "due" && key !== "rec" && key !== "origProj" && key !== "||https" && key !== "||http"
+    );
+    if (kvPairs.length > 0) {
+      const kvEl = container.createDiv("todo-kv");
+      kvPairs.forEach(([key, value]) => {
+        const kvPair = kvEl.createSpan("todo-kv-pair");
+        kvPair.setText(`${key}:${value}`);
+      });
+    }
+  }
+  getProjectIcon(project) {
+    if (project === "Inbox")
+      return Icons.inbox;
+    if (project === "Archived")
+      return Icons.archived;
+    const customIcon = this.projectManager.getProjectIcon(project);
+    return customIcon || Icons.hash;
+  }
+  getDisplayProject(project, item) {
+    if (project === "Archived" && item.keyValuePairs.origProj) {
+      const originalProjects = item.keyValuePairs.origProj.split(",");
+      return originalProjects[0];
+    }
+    return project;
+  }
+};
+
 // src/components/ui/taskItem.ts
 var TaskItem = class {
-  constructor(taskManager, projectManager, filterManager, onSearchTag) {
+  constructor(taskManager, projectManager, filterManager, onSearchTag, app) {
     this.taskManager = taskManager;
     this.projectManager = projectManager;
     this.filterManager = filterManager;
     this.onSearchTag = onSearchTag;
+    this.app = app;
+    this.contentRenderer = new TaskContentRenderer(projectManager, onSearchTag, app);
+    this.metadataRenderer = new TaskMetadataRenderer(projectManager);
   }
   // Render complete task item
   render(container, item) {
@@ -327,11 +587,6 @@ var TaskItem = class {
       }
     });
   }
-  getContainerWidth() {
-    const container = document.querySelector(".todo-txt-view");
-    return container ? container.clientWidth : window.innerWidth;
-  }
-  // Render task content and metadata
   renderContent(container, item) {
     const contentEl = container.createDiv("todo-content");
     const mainLine = contentEl.createDiv("todo-main");
@@ -342,198 +597,39 @@ var TaskItem = class {
     const isMobile = this.getContainerWidth() <= 768;
     const isCompleted = item.completed;
     const isArchived = item.projects.includes("Archived");
-    const descriptionLine = mainLine.createDiv("todo-description-line");
-    const descriptionEl = descriptionLine.createDiv("todo-description");
-    this.renderFormattedDescription(descriptionEl, item);
-    if (!isCompleted && !isArchived && !hasDueDate && !hasDescriptionNotes && !hasKeyValuePairs && item.projects.length > 0 && !isMobile) {
-      this.renderInlineProjects(descriptionLine, item.projects, item);
+    this.contentRenderer.renderDescription(mainLine, item);
+    const shouldShowInlineProjects = !isCompleted && !isArchived && !hasDueDate && !hasDescriptionNotes && !hasKeyValuePairs && item.projects.length > 0 && !isMobile;
+    if (shouldShowInlineProjects) {
+      const descriptionLine = mainLine.querySelector(".todo-description-line");
+      if (descriptionLine) {
+        this.contentRenderer.renderInlineProjects(descriptionLine, item.projects, item);
+      }
     }
     if (hasDescriptionNotes) {
-      const descriptionNotesLine = mainLine.createDiv("todo-description-notes-line");
-      const descriptionNotesEl = descriptionNotesLine.createDiv("task-description-notes");
-      this.renderFormattedDescriptionNotes(descriptionNotesEl, item.descriptionNotes || "");
+      this.contentRenderer.renderDescriptionNotes(mainLine, item.descriptionNotes || "");
       if (!isCompleted && !isArchived && !hasDueDate && !hasKeyValuePairs && item.projects.length > 0 && !isMobile) {
-        this.renderInlineProjects(descriptionNotesLine, item.projects, item);
+        const notesLine = mainLine.querySelector(".todo-description-notes-line");
+        if (notesLine) {
+          this.contentRenderer.renderInlineProjects(notesLine, item.projects, item);
+        }
       }
     }
-    if (hasDueDate || hasKeyValuePairs || item.completionDate || isCompleted && item.projects.length > 0 || isArchived && item.projects.length > 0 || isMobile && item.projects.length > 0) {
+    const needsMetadata = hasDueDate || hasKeyValuePairs || item.completionDate || isCompleted && item.projects.length > 0 || isArchived && item.projects.length > 0 || isMobile && item.projects.length > 0;
+    if (needsMetadata) {
       const shouldRenderProjectsInMeta = isCompleted || isArchived || hasDueDate || hasKeyValuePairs || isMobile;
-      this.renderMetadata(contentEl, item, shouldRenderProjectsInMeta);
+      this.metadataRenderer.render(contentEl, item, shouldRenderProjectsInMeta);
     }
   }
-  // Parse description into clickable elements
-  renderFormattedDescription(container, item) {
-    let displayDescription = item.description;
-    if (item.completed || item.projects.includes("Archived")) {
-      displayDescription = displayDescription.replace(/\s+pri:[A-Z]\b/g, "").trim();
-    }
-    const parts = displayDescription.split(/(\s+)/);
-    parts.forEach((part) => {
-      if (part.trim() === "") {
-        container.appendChild(document.createTextNode(part));
-      } else if (part.startsWith("+") && part.match(/^\+\w+/)) {
-        return;
-      } else if (part.startsWith("@") && part.match(/^@\S+/)) {
-        const contextEl = container.createSpan("context-tag");
-        contextEl.setText(part.substring(1));
-      } else if (part.startsWith("#")) {
-        const hashtagEl = container.createSpan("hashtag-tag");
-        hashtagEl.setText(part);
-        hashtagEl.addEventListener("click", (e) => {
-          e.stopPropagation();
-          this.onSearchTag(part);
-        });
-      } else if (part.includes(":") && !part.includes(" ") && !part.startsWith("http")) {
-        const [key, value] = part.split(":", 2);
-        if (key === "rec") {
-          return;
-        }
-        if (value && value.trim()) {
-          return;
-        } else {
-          container.appendChild(document.createTextNode(part));
-        }
-      } else if (part.match(/https?:\/\/[^\s]+/)) {
-        const linkEl = container.createEl("a", {
-          href: part,
-          text: part
-        });
-        linkEl.addEventListener("click", (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          window.open(part, "_blank");
-        });
-      } else {
-        container.appendChild(document.createTextNode(part));
-      }
-    });
+  getContainerWidth() {
+    const container = document.querySelector(".todo-txt-view");
+    return container ? container.clientWidth : window.innerWidth;
   }
-  // Format description notes with links
-  renderFormattedDescriptionNotes(container, descriptionNotes) {
-    const parts = descriptionNotes.split(/(\s+)/);
-    parts.forEach((part) => {
-      if (part.match(/https?:\/\/[^\s]+/)) {
-        const linkEl = container.createEl("a", {
-          href: part,
-          text: part
-        });
-        linkEl.addEventListener("click", (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          window.open(part, "_blank");
-        });
-      } else {
-        container.appendChild(document.createTextNode(part));
-      }
-    });
-  }
-  // Render projects inline with description
-  renderInlineProjects(container, projects, item) {
-    const inlineProjectsEl = container.createDiv("todo-projects-inline");
-    projects.forEach((project) => {
-      const projectEl = inlineProjectsEl.createSpan("todo-project-meta");
-      const displayProject = this.getDisplayProject(project, item);
-      const textSpan = projectEl.createSpan("todo-project-text");
-      textSpan.setText(displayProject.replace(/_/g, " "));
-      const iconSpan = projectEl.createSpan("todo-project-icon");
-      const icon = this.getProjectIcon(displayProject);
-      if (icon.includes("<svg")) {
-        const svgElement = createSVGElement(icon);
-        iconSpan.appendChild(svgElement);
-      } else {
-        iconSpan.setText(icon);
-      }
-    });
-  }
-  // Render task metadata section
-  renderMetadata(container, item, renderProjects = true) {
-    const metaEl = container.createDiv("todo-meta");
-    const metaLeft = metaEl.createDiv("todo-meta-left");
-    const metaRight = metaEl.createDiv("todo-meta-right");
-    if (item.completed && item.completionDate) {
-      const formattedDate = DateUtils.formatDate(item.completionDate);
-      const completionDateEl = metaLeft.createSpan("todo-date completion-date");
-      completionDateEl.setText(formattedDate);
-    }
-    if (item.projects.includes("Archived") && !item.completed && item.creationDate) {
-      const formattedDate = DateUtils.formatDate(item.creationDate);
-      const creationDateEl = metaLeft.createSpan("todo-date creation-date");
-      creationDateEl.setText(formattedDate);
-    }
-    const dueMatch = item.description.match(/due:(\d{4}-\d{2}-\d{2})/);
-    if (dueMatch && !item.completed && !item.projects.includes("Archived")) {
-      const dueDateValue = dueMatch[1];
-      const formattedDate = DateUtils.formatDate(dueDateValue);
-      const dueDateStatus = DateUtils.getDueDateStatus(dueDateValue);
-      const dueDateEl = metaLeft.createSpan("todo-due-date");
-      dueDateEl.appendText(formattedDate);
-      const hasRecurrence = item.keyValuePairs.rec || item.description.includes("rec:");
-      if (hasRecurrence) {
-        const repeatIcon = dueDateEl.createSpan("repeat-icon");
-        const repeatSvg = createSVGElement(Icons.repeat);
-        repeatIcon.appendChild(repeatSvg);
-      }
-      if (dueDateStatus) {
-        dueDateEl.addClass(dueDateStatus);
-      }
-    }
-    if (item.completed && !item.completionDate) {
-      const completionDateEl = metaLeft.createSpan("todo-date completion-date");
-      completionDateEl.setText("Completed");
-    }
-    if (renderProjects && item.projects.length > 0) {
-      const projectsEl = metaRight.createDiv("todo-projects-meta");
-      item.projects.forEach((project) => {
-        const projectEl = projectsEl.createSpan("todo-project-meta");
-        const displayProject = this.getDisplayProject(project, item);
-        const textSpan = projectEl.createSpan("todo-project-text");
-        textSpan.setText(displayProject.replace(/_/g, " "));
-        const iconSpan = projectEl.createSpan("todo-project-icon");
-        const icon = this.getProjectIcon(displayProject);
-        if (icon.includes("<svg")) {
-          const svgElement = createSVGElement(icon);
-          iconSpan.appendChild(svgElement);
-        } else {
-          iconSpan.setText(icon);
-        }
-      });
-    }
-    const kvPairs = Object.entries(item.keyValuePairs).filter(
-      ([key]) => key !== "pri" && key !== "due" && key !== "rec" && key !== "origProj" && key !== "||https" && key !== "||http"
-    );
-    if (kvPairs.length > 0) {
-      const kvEl = metaLeft.createDiv("todo-kv");
-      kvPairs.forEach(([key, value]) => {
-        const kvPair = kvEl.createSpan("todo-kv-pair");
-        kvPair.setText(`${key}:${value}`);
-      });
-    }
-  }
-  // Get priority from active or completed task
   getPriorityForDisplay(item) {
     if (item.priority)
       return item.priority;
     if (item.completed && item.keyValuePairs.pri)
       return item.keyValuePairs.pri;
     return null;
-  }
-  // Get icon for project type
-  getProjectIcon(project) {
-    if (project === "Inbox") {
-      return Icons.inbox;
-    } else if (project === "Archived") {
-      return Icons.archived;
-    }
-    const customIcon = this.projectManager.getProjectIcon(project);
-    return customIcon || Icons.hash;
-  }
-  // Show original project name for archived tasks
-  getDisplayProject(project, item) {
-    if (project === "Archived" && item.keyValuePairs.origProj) {
-      const originalProjects = item.keyValuePairs.origProj.split(",");
-      return originalProjects[0];
-    }
-    return project;
   }
 };
 
@@ -616,7 +712,7 @@ var TaskControls = class {
     const sortToggleBtn = container.createDiv("sort-toggle-btn");
     const sortSvg = createSVGElement(Icons.sort);
     sortToggleBtn.appendChild(sortSvg);
-    sortToggleBtn.setAttribute("title", "Toggle sort options");
+    sortToggleBtn.setAttribute("title", "Sort options");
     sortToggleBtn.addEventListener("click", () => {
       var _a;
       this.sortOptionsVisible = !this.sortOptionsVisible;
@@ -1223,6 +1319,81 @@ var ProjectsSidebar = class {
   }
 };
 
+// src/utils/responsiveManager.ts
+var ResponsiveManager = class {
+  constructor(containerEl, onBreakpointChange) {
+    this.containerEl = containerEl;
+    this.onBreakpointChange = onBreakpointChange;
+    this.resizeObserver = null;
+    this.currentBreakpoint = "mobile";
+    this.isInitialized = false;
+    this.initialize();
+  }
+  // Initialize responsive classes
+  initialize() {
+    const width = this.containerEl.offsetWidth || window.innerWidth;
+    const initialBreakpoint = width > 768 ? "desktop" : "mobile";
+    this.containerEl.removeClass("mobile", "desktop");
+    this.containerEl.addClass(initialBreakpoint);
+    this.currentBreakpoint = initialBreakpoint;
+    this.setupResizeObserver();
+  }
+  // Setup ResizeObserver for container width changes
+  setupResizeObserver() {
+    if (typeof ResizeObserver !== "undefined" && !this.resizeObserver) {
+      this.resizeObserver = new ResizeObserver(() => {
+        this.updateResponsiveClasses();
+      });
+      this.resizeObserver.observe(this.containerEl);
+    }
+  }
+  // Update responsive classes based on container width
+  updateResponsiveClasses() {
+    const containerWidth = this.containerEl.offsetWidth;
+    const effectiveWidth = containerWidth > 0 ? containerWidth : window.innerWidth;
+    const newBreakpoint = effectiveWidth > 768 ? "desktop" : "mobile";
+    if (newBreakpoint !== this.currentBreakpoint) {
+      const oldBreakpoint = this.currentBreakpoint;
+      this.containerEl.removeClass("mobile", "desktop");
+      this.containerEl.addClass(newBreakpoint);
+      this.currentBreakpoint = newBreakpoint;
+      if (this.isInitialized) {
+        this.onBreakpointChange(newBreakpoint, oldBreakpoint);
+      }
+    }
+  }
+  // Force responsive update
+  forceUpdate() {
+    const containerWidth = this.containerEl.offsetWidth;
+    const effectiveWidth = containerWidth > 0 ? containerWidth : window.innerWidth;
+    const correctBreakpoint = effectiveWidth > 768 ? "desktop" : "mobile";
+    this.containerEl.removeClass("mobile", "desktop");
+    this.containerEl.addClass(correctBreakpoint);
+    if (correctBreakpoint !== this.currentBreakpoint) {
+      const oldBreakpoint = this.currentBreakpoint;
+      this.currentBreakpoint = correctBreakpoint;
+      if (this.isInitialized) {
+        this.onBreakpointChange(correctBreakpoint, oldBreakpoint);
+      }
+    }
+  }
+  // Mark as initialized
+  setInitialized() {
+    this.isInitialized = true;
+  }
+  // Get current breakpoint
+  getCurrentBreakpoint() {
+    return this.currentBreakpoint;
+  }
+  // Cleanup ResizeObserver
+  destroy() {
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
+  }
+};
+
 // src/managers/viewRenderer.ts
 var ViewRenderer = class {
   constructor(containerEl, taskManager, projectManager, filterManager, plugin) {
@@ -1231,10 +1402,9 @@ var ViewRenderer = class {
     this.projectManager = projectManager;
     this.filterManager = filterManager;
     this.plugin = plugin;
+    // State
     this.searchInputHasFocus = false;
     this.sidebarOpen = false;
-    this.resizeObserver = null;
-    this.currentBreakpoint = "mobile";
     this.isInitialized = false;
     // Event callbacks
     this.onProjectSelect = () => {
@@ -1253,15 +1423,18 @@ var ViewRenderer = class {
     };
     this.onProjectTogglePin = () => {
     };
-    this.initializeResponsiveClasses();
-    const isDesktop = this.currentBreakpoint === "desktop";
+    this.responsiveManager = new ResponsiveManager(
+      containerEl,
+      (newBreakpoint, oldBreakpoint) => this.handleBreakpointChange(newBreakpoint)
+    );
+    const isDesktop = this.responsiveManager.getCurrentBreakpoint() === "desktop";
     this.sidebarOpen = isDesktop ? !this.plugin.settings.sidebarCollapsed : false;
-    this.setupResizeObserver();
     this.taskItemRenderer = new TaskItem(
       taskManager,
       projectManager,
       filterManager,
-      (tag) => this.searchForTag(tag)
+      (tag) => this.searchForTag(tag),
+      this.plugin.app
     );
     this.taskControls = new TaskControls(
       filterManager,
@@ -1281,65 +1454,20 @@ var ViewRenderer = class {
       () => this.toggleSidebar()
     );
   }
-  // Set responsive classes by container width
-  initializeResponsiveClasses() {
-    const width = this.containerEl.offsetWidth || window.innerWidth;
-    const initialBreakpoint = width > 768 ? "desktop" : "mobile";
-    this.containerEl.removeClass("mobile", "desktop");
-    this.containerEl.addClass(initialBreakpoint);
-    this.currentBreakpoint = initialBreakpoint;
-  }
-  // ResizeObserver for container width changes
-  setupResizeObserver() {
-    if (typeof ResizeObserver !== "undefined" && !this.resizeObserver) {
-      this.resizeObserver = new ResizeObserver(() => {
-        this.updateResponsiveClasses();
-      });
-      this.resizeObserver.observe(this.containerEl);
-    }
-  }
-  // Update responsive classes by container width
-  updateResponsiveClasses() {
-    const containerWidth = this.containerEl.offsetWidth;
-    const effectiveWidth = containerWidth > 0 ? containerWidth : window.innerWidth;
-    const newBreakpoint = effectiveWidth > 768 ? "desktop" : "mobile";
-    if (newBreakpoint !== this.currentBreakpoint) {
-      this.containerEl.removeClass("mobile", "desktop");
-      this.containerEl.addClass(newBreakpoint);
-      this.currentBreakpoint = newBreakpoint;
-      this.handleBreakpointChange();
-    }
-  }
-  // Handle breakpoint changes
-  handleBreakpointChange() {
-    if (!this.isInitialized) {
+  // Handle responsive breakpoint changes
+  handleBreakpointChange(newBreakpoint) {
+    if (!this.isInitialized)
       return;
-    }
-    const isDesktop = this.currentBreakpoint === "desktop";
+    const isDesktop = newBreakpoint === "desktop";
     const shouldBeOpen = isDesktop ? !this.plugin.settings.sidebarCollapsed : false;
     if (shouldBeOpen !== this.sidebarOpen) {
       this.sidebarOpen = shouldBeOpen;
       this.updateSidebarState();
     }
   }
-  // Force responsive update
-  forceResponsiveUpdate() {
-    const containerWidth = this.containerEl.offsetWidth;
-    const effectiveWidth = containerWidth > 0 ? containerWidth : window.innerWidth;
-    const correctBreakpoint = effectiveWidth > 768 ? "desktop" : "mobile";
-    this.containerEl.removeClass("mobile", "desktop");
-    this.containerEl.addClass(correctBreakpoint);
-    if (correctBreakpoint !== this.currentBreakpoint) {
-      this.currentBreakpoint = correctBreakpoint;
-      this.handleBreakpointChange();
-    }
-  }
-  // Cleanup ResizeObserver
+  // Cleanup
   destroy() {
-    if (this.resizeObserver) {
-      this.resizeObserver.disconnect();
-      this.resizeObserver = null;
-    }
+    this.responsiveManager.destroy();
   }
   // Render complete view layout
   render(filteredItems, allItems, filterState, pinnedProjects, allKnownProjects, file) {
@@ -1350,7 +1478,7 @@ var ViewRenderer = class {
     const tasksScrollTop = ((_b = this.containerEl.querySelector(".todo-tasks-container")) == null ? void 0 : _b.scrollTop) || 0;
     this.containerEl.empty();
     const mainLayout = this.containerEl.createDiv("todo-txt-content");
-    this.forceResponsiveUpdate();
+    this.responsiveManager.forceUpdate();
     if (!this.sidebarOpen) {
       mainLayout.addClass("sidebar-collapsed");
     }
@@ -1384,13 +1512,14 @@ var ViewRenderer = class {
     }
     if (!this.isInitialized) {
       this.isInitialized = true;
+      this.responsiveManager.setInitialized();
     }
   }
   // Toggle sidebar visibility
   async toggleSidebar() {
     this.sidebarOpen = !this.sidebarOpen;
     this.updateSidebarState();
-    if (this.currentBreakpoint === "desktop") {
+    if (this.responsiveManager.getCurrentBreakpoint() === "desktop") {
       this.plugin.settings.sidebarCollapsed = !this.sidebarOpen;
       await this.plugin.saveSettings();
     }
@@ -1407,7 +1536,7 @@ var ViewRenderer = class {
         sidebar.removeClass("closed");
         mainContent.removeClass("sidebar-closed");
         todoContent == null ? void 0 : todoContent.removeClass("sidebar-collapsed");
-        if (this.currentBreakpoint === "mobile") {
+        if (this.responsiveManager.getCurrentBreakpoint() === "mobile") {
           overlay == null ? void 0 : overlay.addClass("visible");
         }
       } else {
@@ -1473,16 +1602,9 @@ var ViewRenderer = class {
 // src/components/modals/addTaskModal.ts
 var import_obsidian2 = require("obsidian");
 
-// src/components/modals/taskModalUI.ts
-var TaskModalUI = class {
-  constructor(contentEl, isEditMode, dataHandler, onSubmit, onDelete, onCancel) {
-    // UI element references
-    this.taskDescriptionInput = null;
-    this.priorityDropdown = null;
-    this.projectDropdown = null;
-    this.datePicker = null;
-    this.taskDescriptionNotes = null;
-    this.contentEl = contentEl;
+// src/components/modals/taskModalElements.ts
+var TaskModalElements = class {
+  constructor(isEditMode, dataHandler, onSubmit, onDelete, onCancel) {
     this.isEditMode = isEditMode;
     this.dataHandler = dataHandler;
     this.onSubmit = onSubmit;
@@ -1493,70 +1615,61 @@ var TaskModalUI = class {
   isMobile() {
     return window.innerWidth <= 768;
   }
-  // Create complete modal UI
-  render() {
-    this.contentEl.empty();
-    const inputContainer = this.contentEl.createDiv("task-input-container");
-    const taskInput = inputContainer.createEl("textarea");
+  // Create all modal UI elements
+  createModalElements(contentEl) {
+    const inputContainer = contentEl.createDiv("task-input-container");
+    const taskInput = this.createTaskInput(inputContainer);
+    const descriptionInput = this.createDescriptionInput(inputContainer);
+    const bottomContainer = contentEl.createDiv("modal-bottom-container");
+    const leftContainer = bottomContainer.createDiv("left-container");
+    const projectDropdown = this.createProjectDropdown(leftContainer);
+    const priorityDropdown = this.createPriorityDropdown(leftContainer);
+    const datePicker = this.createDatePicker(leftContainer);
+    this.createButtons(bottomContainer);
+    return {
+      taskInput,
+      descriptionInput,
+      projectDropdown,
+      priorityDropdown,
+      datePicker
+    };
+  }
+  createTaskInput(container) {
+    const taskInput = container.createEl("textarea");
     taskInput.addClass("task-input-field");
     taskInput.setAttribute("rows", "1");
     taskInput.setAttribute("placeholder", "Next thing to do");
     taskInput.value = this.dataHandler.taskDescription;
-    this.taskDescriptionInput = taskInput;
-    taskInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        if (this.isMobile()) {
-          e.preventDefault();
-          this.onSubmit();
-        } else {
-          e.preventDefault();
-        }
-      }
-    });
-    const descriptionContainer = inputContainer.createDiv("task-description-container");
+    return taskInput;
+  }
+  createDescriptionInput(container) {
+    const descriptionContainer = container.createDiv("task-description-container");
     const descriptionInput = descriptionContainer.createEl("textarea");
     descriptionInput.addClass("task-description-field");
     descriptionInput.setAttribute("rows", "2");
     descriptionInput.setAttribute("placeholder", "Description");
     descriptionInput.value = this.dataHandler.taskDescriptionNotes || "";
-    this.taskDescriptionNotes = descriptionInput;
-    descriptionInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        if (!this.isMobile()) {
-          e.preventDefault();
-          this.onSubmit();
-        }
-      }
-    });
-    const bottomContainer = this.contentEl.createDiv("modal-bottom-container");
-    const leftContainer = bottomContainer.createDiv("left-container");
-    this.createProjectDropdown(leftContainer);
-    this.createPriorityDropdown(leftContainer);
-    this.createDatePicker(leftContainer);
-    this.createButtons(bottomContainer);
+    return descriptionInput;
   }
-  // Create project selection dropdown
   createProjectDropdown(container) {
     const projectContainer = container.createDiv("dropdown-container");
     const projectSelect = projectContainer.createEl("select");
     projectSelect.addClass("modal-dropdown");
-    this.projectDropdown = projectSelect;
     projectSelect.createEl("option", { value: "Inbox", text: "Inbox" });
-    projectSelect.createEl("option", { value: "Archived", text: "Archived" });
     this.dataHandler.availableProjects.filter((p) => p !== "Inbox" && p !== "Archived").forEach((project) => {
       projectSelect.createEl("option", {
         value: project,
         text: project.replace(/_/g, " ")
       });
     });
+    projectSelect.createEl("option", { value: "Archived", text: "Archived" });
     projectSelect.value = this.dataHandler.selectedProject;
+    return projectSelect;
   }
-  // Create priority selection dropdown
   createPriorityDropdown(container) {
     const priorityContainer = container.createDiv("dropdown-container");
     const prioritySelect = priorityContainer.createEl("select");
     prioritySelect.addClass("modal-dropdown");
-    this.priorityDropdown = prioritySelect;
     if (this.dataHandler.isFirstTimePriority && !this.isEditMode || this.isEditMode && !this.dataHandler.priority) {
       const defaultOption = prioritySelect.createEl("option", {
         value: "",
@@ -1582,18 +1695,17 @@ var TaskModalUI = class {
     if (this.dataHandler.priority) {
       prioritySelect.value = this.dataHandler.priority;
     }
+    return prioritySelect;
   }
-  // Create due date picker
   createDatePicker(container) {
     const dateContainer = container.createDiv("dropdown-container");
     const dateInput = dateContainer.createEl("input", { type: "date" });
     dateInput.addClass("modal-date-picker");
-    this.datePicker = dateInput;
     if (this.dataHandler.dueDate) {
       dateInput.value = this.dataHandler.dueDate;
     }
+    return dateInput;
   }
-  // Create action buttons
   createButtons(container) {
     const buttonsContainer = container.createDiv("buttons-container");
     if (this.isEditMode && this.onDelete) {
@@ -1615,6 +1727,47 @@ var TaskModalUI = class {
     });
     submitButton.addClass("add-button");
     submitButton.addEventListener("click", this.onSubmit);
+  }
+};
+
+// src/components/modals/taskModalUI.ts
+var TaskModalUI = class {
+  constructor(contentEl, isEditMode, dataHandler, onSubmit, onDelete, onCancel) {
+    // UI element references
+    this.taskDescriptionInput = null;
+    this.priorityDropdown = null;
+    this.projectDropdown = null;
+    this.datePicker = null;
+    this.taskDescriptionNotes = null;
+    this.contentEl = contentEl;
+    this.isEditMode = isEditMode;
+    this.dataHandler = dataHandler;
+    this.onSubmit = onSubmit;
+    this.onDelete = onDelete;
+    this.onCancel = onCancel;
+    this.elements = new TaskModalElements(
+      isEditMode,
+      dataHandler,
+      onSubmit,
+      onDelete,
+      onCancel
+    );
+  }
+  // Create complete modal UI
+  render() {
+    this.contentEl.empty();
+    const {
+      taskInput,
+      descriptionInput,
+      projectDropdown,
+      priorityDropdown,
+      datePicker
+    } = this.elements.createModalElements(this.contentEl);
+    this.taskDescriptionInput = taskInput;
+    this.taskDescriptionNotes = descriptionInput;
+    this.projectDropdown = projectDropdown;
+    this.priorityDropdown = priorityDropdown;
+    this.datePicker = datePicker;
   }
   // Set up task description change handler
   onTaskDescriptionChange(handler) {
@@ -1660,6 +1813,13 @@ var TaskModalUI = class {
       handler(e.target.value);
     });
   }
+  // Set up notes change handler
+  onTaskDescriptionNotesChange(handler) {
+    var _a;
+    (_a = this.taskDescriptionNotes) == null ? void 0 : _a.addEventListener("input", (e) => {
+      handler(e.target.value);
+    });
+  }
   // Update priority dropdown selection
   updatePriority(priority) {
     if (this.priorityDropdown) {
@@ -1686,38 +1846,21 @@ var TaskModalUI = class {
       this.taskDescriptionInput.value = this.dataHandler.taskDescription;
     }
   }
-  // Insert context at cursor position
-  insertContextAtPosition(context, atPosition) {
-    this.insertTextAtPosition(context, atPosition, "@");
-  }
-  getTaskDescription() {
-    var _a;
-    return ((_a = this.taskDescriptionInput) == null ? void 0 : _a.value) || "";
-  }
-  getTaskInputElement() {
-    return this.taskDescriptionInput;
-  }
-  // Focus main input field
-  focusInput() {
-    var _a;
-    (_a = this.taskDescriptionInput) == null ? void 0 : _a.focus();
-  }
-  // Set up notes change handler
-  onTaskDescriptionNotesChange(handler) {
-    var _a;
-    (_a = this.taskDescriptionNotes) == null ? void 0 : _a.addEventListener("input", (e) => {
-      handler(e.target.value);
-    });
-  }
-  getTaskDescriptionNotes() {
-    var _a;
-    return ((_a = this.taskDescriptionNotes) == null ? void 0 : _a.value) || "";
-  }
   // Update project dropdown selection
   updateProject(project) {
     if (this.projectDropdown) {
       this.projectDropdown.value = project;
     }
+  }
+  // Update date picker value
+  updateDueDate(date) {
+    if (this.datePicker) {
+      this.datePicker.value = date;
+    }
+  }
+  // Insert context at cursor position
+  insertContextAtPosition(context, atPosition) {
+    this.insertTextAtPosition(context, atPosition, "@");
   }
   // Insert text at specific position in input
   insertTextAtPosition(text, symbolPosition, symbol) {
@@ -1726,7 +1869,6 @@ var TaskModalUI = class {
     const input = this.taskDescriptionInput;
     const value = input.value;
     const cursorPosition = input.selectionStart || 0;
-    const searchTerm = value.substring(symbolPosition + 1, cursorPosition);
     const beforeSymbol = value.substring(0, symbolPosition);
     const afterCursor = value.substring(cursorPosition);
     const newValue = beforeSymbol + symbol + text + " " + afterCursor;
@@ -1736,11 +1878,42 @@ var TaskModalUI = class {
     input.focus();
     this.dataHandler.taskDescription = input.value;
   }
-  // Update date picker value
-  updateDueDate(date) {
-    if (this.datePicker) {
-      this.datePicker.value = date;
-    }
+  // Focus main input field
+  focusInput() {
+    var _a;
+    (_a = this.taskDescriptionInput) == null ? void 0 : _a.focus();
+  }
+  getTaskDescription() {
+    var _a;
+    return ((_a = this.taskDescriptionInput) == null ? void 0 : _a.value) || "";
+  }
+  getTaskDescriptionNotes() {
+    var _a;
+    return ((_a = this.taskDescriptionNotes) == null ? void 0 : _a.value) || "";
+  }
+  getTaskInputElement() {
+    return this.taskDescriptionInput;
+  }
+  // Notes keydown handler  
+  onTaskDescriptionNotesKeyDown(handler) {
+    var _a;
+    (_a = this.taskDescriptionNotes) == null ? void 0 : _a.addEventListener("keydown", handler);
+  }
+  // Notes keyup handler  
+  onTaskDescriptionNotesKeyUp(handler) {
+    var _a;
+    (_a = this.taskDescriptionNotes) == null ? void 0 : _a.addEventListener("keyup", handler);
+  }
+  // Notes input change with cursor position
+  onTaskDescriptionNotesInputChange(handler) {
+    var _a;
+    (_a = this.taskDescriptionNotes) == null ? void 0 : _a.addEventListener("input", (e) => {
+      const target = e.target;
+      handler(target.value, target.selectionStart || 0);
+    });
+  }
+  getTaskNotesInputElement() {
+    return this.taskDescriptionNotes;
   }
 };
 
@@ -1873,6 +2046,9 @@ var TaskDataHandler = class {
     }
     return taskLine;
   }
+  updateAvailableContexts(newContexts) {
+    this.availableContexts = newContexts;
+  }
 };
 
 // src/components/suggestions/suggestionHandler.ts
@@ -1944,16 +2120,27 @@ var SuggestionHandler = class {
     const suggestionRect = this.suggestions.getBoundingClientRect();
     let finalTop = rect.top + cursorCoords.top + cursorCoords.height + 5;
     let finalLeft = rect.left + cursorCoords.left;
-    if (finalLeft + suggestionRect.width > window.innerWidth) {
-      finalLeft = rect.left + cursorCoords.left - suggestionRect.width;
+    const isMobile = window.innerWidth <= 768;
+    const padding = isMobile ? 10 : 5;
+    const maxWidth = isMobile ? window.innerWidth - padding * 2 : 400;
+    this.suggestions.style.setProperty("--suggestion-max-width", `${maxWidth}px`);
+    const updatedRect = this.suggestions.getBoundingClientRect();
+    if (finalLeft + updatedRect.width > window.innerWidth - padding) {
+      if (isMobile) {
+        finalLeft = window.innerWidth - updatedRect.width - padding;
+        finalLeft = Math.max(padding, finalLeft);
+      } else {
+        finalLeft = rect.left + cursorCoords.left - updatedRect.width;
+        finalLeft = Math.max(padding, finalLeft);
+      }
     }
-    if (finalTop + suggestionRect.height > window.innerHeight) {
-      finalTop = rect.top + cursorCoords.top - suggestionRect.height - 5;
+    finalLeft = Math.max(padding, finalLeft);
+    if (finalTop + updatedRect.height > window.innerHeight - padding) {
+      finalTop = rect.top + cursorCoords.top - updatedRect.height - 5;
+      finalTop = Math.max(padding, finalTop);
     }
-    if (finalTop !== rect.top + cursorCoords.top + cursorCoords.height + 5 || finalLeft !== rect.left + cursorCoords.left) {
-      this.suggestions.style.setProperty("--suggestion-top", `${finalTop}px`);
-      this.suggestions.style.setProperty("--suggestion-left", `${finalLeft}px`);
-    }
+    this.suggestions.style.setProperty("--suggestion-top", `${finalTop}px`);
+    this.suggestions.style.setProperty("--suggestion-left", `${finalLeft}px`);
     this.selectedSuggestionIndex = 0;
     this.updateSuggestionSelection();
   }
@@ -2078,21 +2265,248 @@ var SuggestionHandler = class {
   }
 };
 
-// src/components/suggestions/suggestionManager.ts
-var SuggestionManager = class {
-  constructor(dataHandler, ui) {
+// src/components/suggestions/menuSuggestions.ts
+var MenuSuggestions = class extends SuggestionHandler {
+  constructor(dataHandler, ui, getOrderedProjects, onProjectChange) {
+    super({
+      type: "priority",
+      items: ["Date", "Priority", "Project", "Context"],
+      symbol: "/",
+      getDisplayText: (item) => {
+        if (this.mainMenuMode === "Project") {
+          return item.replace(/_/g, " ");
+        }
+        return item;
+      },
+      onSelect: (option, symbolPosition, cursorPosition) => {
+        const input = this.ui.getTaskInputElement();
+        if (!input)
+          return true;
+        const value = input.value;
+        const beforeSymbol = value.substring(0, symbolPosition);
+        const afterCursor = value.substring(cursorPosition);
+        if (this.mainMenuMode) {
+          return this.handleSubmenuSelection(
+            option,
+            symbolPosition,
+            cursorPosition,
+            beforeSymbol,
+            afterCursor,
+            input
+          );
+        } else {
+          return this.handleMainSelection(
+            option,
+            value,
+            symbolPosition,
+            cursorPosition,
+            input
+          );
+        }
+      }
+    });
     this.dataHandler = dataHandler;
     this.ui = ui;
+    this.getOrderedProjects = getOrderedProjects;
+    this.onProjectChange = onProjectChange;
+    this.mainMenuMode = "";
+  }
+  // Handle main menu selection
+  handleMainSelection(option, value, symbolPosition, cursorPosition, input) {
+    this.mainMenuMode = option;
+    switch (option) {
+      case "Date":
+        this.updateItems(["Today", "Tomorrow", "Next Week", "Next Month", "Repeat"]);
+        break;
+      case "Priority":
+        this.updateItems(["High", "Medium", "Low", "None"]);
+        break;
+      case "Project":
+        this.updateItems(this.getOrderedProjects());
+        break;
+      case "Context":
+        this.updateItems(this.dataHandler.availableContexts);
+        break;
+    }
+    const searchTerm = value.substring(symbolPosition + 1, cursorPosition).toLowerCase();
+    this.showSuggestions(searchTerm, input, cursorPosition);
+    return false;
+  }
+  // Handle submenu selection
+  handleSubmenuSelection(option, symbolPosition, cursorPosition, beforeSymbol, afterCursor, input) {
+    if (this.mainMenuMode === "Date" && option === "Repeat") {
+      this.updateItems(["Daily", "Weekly", "Monthly", "Yearly"]);
+      this.mainMenuMode = "Date-Repeat";
+      const searchTerm = input.value.substring(symbolPosition + 1, cursorPosition).toLowerCase();
+      this.showSuggestions(searchTerm, input, cursorPosition);
+      return false;
+    }
+    switch (this.mainMenuMode) {
+      case "Date":
+        this.handleDateSelection(option, beforeSymbol, afterCursor, symbolPosition, input);
+        break;
+      case "Date-Repeat":
+        this.handleRepeatSelection(option, beforeSymbol, afterCursor, input);
+        break;
+      case "Priority":
+        this.handlePrioritySelection(option, beforeSymbol, afterCursor, symbolPosition, input);
+        break;
+      case "Project":
+        this.handleProjectSelection(option, beforeSymbol, afterCursor, symbolPosition, input);
+        break;
+      case "Context":
+        this.handleContextSelection(option, beforeSymbol, afterCursor, symbolPosition, input);
+        break;
+    }
+    this.resetMode();
+    return true;
+  }
+  handleDateSelection(option, beforeSymbol, afterCursor, symbolPosition, input) {
+    const dueDate = calculateDueDate(option);
+    input.value = beforeSymbol + afterCursor;
+    this.dataHandler.taskDescription = input.value;
+    this.dataHandler.dueDate = dueDate;
+    this.ui.updateDueDate(dueDate);
+    input.setSelectionRange(symbolPosition, symbolPosition);
+    input.focus();
+  }
+  handleRepeatSelection(option, beforeSymbol, afterCursor, input) {
+    const repeatSyntax = getRepeatSyntax(option);
+    const newValue = beforeSymbol + repeatSyntax + " " + afterCursor;
+    input.value = newValue;
+    this.dataHandler.taskDescription = input.value;
+    const newPosition = beforeSymbol.length + repeatSyntax.length + 1;
+    input.setSelectionRange(newPosition, newPosition);
+    input.focus();
+  }
+  handlePrioritySelection(option, beforeSymbol, afterCursor, symbolPosition, input) {
+    const priorityMap = {
+      "High": "A",
+      "Medium": "B",
+      "Low": "C",
+      "None": ""
+    };
+    const priority = priorityMap[option] || "";
+    input.value = beforeSymbol + afterCursor;
+    this.dataHandler.taskDescription = input.value;
+    this.dataHandler.priority = priority;
+    this.ui.updatePriority(priority);
+    input.setSelectionRange(symbolPosition, symbolPosition);
+    input.focus();
+  }
+  handleProjectSelection(option, beforeSymbol, afterCursor, symbolPosition, input) {
+    input.value = beforeSymbol + afterCursor;
+    this.dataHandler.taskDescription = input.value;
+    this.dataHandler.selectedProject = option;
+    this.ui.updateProject(option);
+    if (this.onProjectChange) {
+      this.onProjectChange(option).catch((error) => {
+        console.error("Error updating contexts for project:", error);
+      });
+    }
+    input.setSelectionRange(symbolPosition, symbolPosition);
+    input.focus();
+  }
+  handleContextSelection(option, beforeSymbol, afterCursor, symbolPosition, input) {
+    const ctxValue = beforeSymbol + `@${option} ` + afterCursor;
+    input.value = ctxValue;
+    this.dataHandler.taskDescription = input.value;
+    const ctxPosition = symbolPosition + option.length + 2;
+    input.setSelectionRange(ctxPosition, ctxPosition);
+    input.focus();
+  }
+  resetMode() {
+    if (this.mainMenuMode) {
+      this.mainMenuMode = "";
+      this.updateItems(["Date", "Priority", "Project", "Context"]);
+    }
+  }
+  updateContextItems(newContexts) {
+    if (this.mainMenuMode === "Context") {
+      this.updateItems(newContexts);
+    }
+  }
+};
+
+// src/components/suggestions/wikiLinkHandler.ts
+var WikiLinkHandler = class {
+  constructor(app) {
+    this.textarea = null;
+    this.app = app;
+    this.handler = new SuggestionHandler({
+      type: "project",
+      // Reuse project type for styling
+      items: [],
+      onSelect: (item, symbolPosition, cursorPosition) => {
+        return this.insertWikiLink(item, symbolPosition, cursorPosition);
+      },
+      symbol: "[[",
+      customFilter: (item, searchTerm) => {
+        return item.toLowerCase().includes(searchTerm.toLowerCase());
+      },
+      getDisplayText: (item) => {
+        return item;
+      }
+    });
+  }
+  showSuggestions(searchTerm, textarea, cursorPosition) {
+    this.textarea = textarea;
+    const allFiles = this.app.vault.getFiles();
+    const fileItems = allFiles.map((file) => {
+      if (file.extension === "md") {
+        return file.basename;
+      }
+      return file.name;
+    });
+    this.handler.updateItems(fileItems);
+    return this.handler.showSuggestions(searchTerm, textarea, cursorPosition);
+  }
+  insertWikiLink(fileName, symbolPosition, cursorPosition) {
+    if (!this.textarea)
+      return false;
+    const value = this.textarea.value;
+    const beforeSymbol = value.substring(0, symbolPosition);
+    const afterCursor = value.substring(cursorPosition);
+    const wikiLink = `[[${fileName}]]`;
+    this.textarea.value = beforeSymbol + wikiLink + afterCursor;
+    const newCursorPosition = symbolPosition + wikiLink.length;
+    this.textarea.setSelectionRange(newCursorPosition, newCursorPosition);
+    this.textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  }
+  handleKeyNavigation(event) {
+    return this.handler.handleKeyNavigation(event);
+  }
+  hideSuggestions() {
+    this.handler.hideSuggestions();
+  }
+  cleanup() {
+    this.handler.cleanup();
+  }
+};
+
+// src/components/suggestions/suggestionManager.ts
+var SuggestionManager = class {
+  constructor(dataHandler, ui, app, onProjectChange) {
+    this.dataHandler = dataHandler;
+    this.ui = ui;
+    this.app = app;
+    this.onProjectChange = onProjectChange;
     this.activeHandler = null;
     this.isInRepeatMode = false;
-    this.mainMenuMode = "";
     this.contextHandler = this.createContextHandler();
     this.priorityHandler = this.createPriorityHandler();
     this.projectHandler = this.createProjectHandler();
     this.dueDateHandler = this.createDueDateHandler();
-    this.mainMenuHandler = this.createMainMenuHandler();
+    this.wikiLinkHandler = new WikiLinkHandler(app);
+    this.mainMenuHandler = new MenuSuggestions(
+      dataHandler,
+      ui,
+      () => this.getOrderedProjectsForSuggestions(),
+      onProjectChange
+    );
   }
-  // Create context suggestions handler (@)
+  // Context suggestions (@)
   createContextHandler() {
     return new SuggestionHandler({
       type: "context",
@@ -2116,13 +2530,12 @@ var SuggestionManager = class {
       }
     });
   }
-  // Create priority suggestions handler (!)
+  // Priority suggestions (!)
   createPriorityHandler() {
     return new SuggestionHandler({
       type: "priority",
       items: ["A", "B", "C", ""],
       symbol: "!",
-      // Allow searching by priority name
       customFilter: (item, searchTerm) => {
         const priorityMap = {
           "A": "high",
@@ -2153,12 +2566,9 @@ var SuggestionManager = class {
       }
     });
   }
-  // Create project suggestions handler (+)
+  // Project suggestions (+)
   createProjectHandler() {
-    const projectsForSuggestion = [...this.dataHandler.availableProjects];
-    if (!projectsForSuggestion.includes("Inbox")) {
-      projectsForSuggestion.unshift("Inbox");
-    }
+    const projectsForSuggestion = this.getOrderedProjectsForSuggestions();
     return new SuggestionHandler({
       type: "project",
       items: projectsForSuggestion,
@@ -2175,6 +2585,11 @@ var SuggestionManager = class {
         this.dataHandler.taskDescription = newValue;
         this.dataHandler.selectedProject = project;
         this.ui.updateProject(project);
+        if (this.onProjectChange) {
+          this.onProjectChange(project).catch((error) => {
+            console.error("Error updating contexts for project:", error);
+          });
+        }
         input.setSelectionRange(symbolPosition, symbolPosition);
         input.focus();
         this.activeHandler = null;
@@ -2182,7 +2597,7 @@ var SuggestionManager = class {
       }
     });
   }
-  // Create due date suggestions handler (*)
+  // Due date suggestions (*)
   createDueDateHandler() {
     return new SuggestionHandler({
       type: "priority",
@@ -2212,8 +2627,6 @@ var SuggestionManager = class {
           const newPosition = beforeSymbol.length + repeatSyntax.length + 1;
           input.setSelectionRange(newPosition, newPosition);
           input.focus();
-          this.activeHandler = null;
-          return true;
         } else {
           const dueDate = calculateDueDate(option);
           input.value = beforeSymbol + afterCursor;
@@ -2222,135 +2635,23 @@ var SuggestionManager = class {
           this.ui.updateDueDate(dueDate);
           input.setSelectionRange(symbolPosition, symbolPosition);
           input.focus();
-          this.activeHandler = null;
-          return true;
         }
+        this.activeHandler = null;
+        return true;
       }
     });
   }
-  // Create main menu handler (/)
-  createMainMenuHandler() {
-    return new SuggestionHandler({
-      type: "priority",
-      items: ["Date", "Priority", "Project", "Context"],
-      symbol: "/",
-      getDisplayText: (item) => {
-        if (this.mainMenuMode === "Project") {
-          return item.replace(/_/g, " ");
-        }
-        return item;
-      },
-      onSelect: (option, symbolPosition, cursorPosition) => {
-        const input = this.ui.getTaskInputElement();
-        if (!input)
-          return true;
-        const value = input.value;
-        const beforeSymbol = value.substring(0, symbolPosition);
-        const afterCursor = value.substring(cursorPosition);
-        if (this.mainMenuMode) {
-          return this.handleMainMenuSubmenuSelection(
-            option,
-            symbolPosition,
-            cursorPosition,
-            beforeSymbol,
-            afterCursor,
-            input
-          );
-        } else {
-          return this.handleMainMenuSelection(option, value, symbolPosition, cursorPosition, input);
-        }
-      }
-    });
-  }
-  // Handle submenu selections
-  handleMainMenuSubmenuSelection(option, symbolPosition, cursorPosition, beforeSymbol, afterCursor, input) {
-    if (this.mainMenuMode === "Date" && option === "Repeat") {
-      this.mainMenuHandler.updateItems(["Daily", "Weekly", "Monthly", "Yearly"]);
-      this.mainMenuMode = "Date-Repeat";
-      const searchTerm = input.value.substring(symbolPosition + 1, cursorPosition).toLowerCase();
-      this.mainMenuHandler.showSuggestions(searchTerm, input, cursorPosition);
-      return false;
-    }
-    switch (this.mainMenuMode) {
-      case "Date":
-        const dueDate = calculateDueDate(option);
-        input.value = beforeSymbol + afterCursor;
-        this.dataHandler.taskDescription = input.value;
-        this.dataHandler.dueDate = dueDate;
-        this.ui.updateDueDate(dueDate);
-        input.setSelectionRange(symbolPosition, symbolPosition);
-        input.focus();
-        break;
-      case "Date-Repeat":
-        const repeatSyntax = getRepeatSyntax(option);
-        const newValue = beforeSymbol + repeatSyntax + " " + afterCursor;
-        input.value = newValue;
-        this.dataHandler.taskDescription = input.value;
-        const newPosition = beforeSymbol.length + repeatSyntax.length + 1;
-        input.setSelectionRange(newPosition, newPosition);
-        input.focus();
-        break;
-      case "Priority":
-        const priorityMap = {
-          "High": "A",
-          "Medium": "B",
-          "Low": "C",
-          "None": ""
-        };
-        const priority = priorityMap[option] || "";
-        input.value = beforeSymbol + afterCursor;
-        this.dataHandler.taskDescription = input.value;
-        this.dataHandler.priority = priority;
-        this.ui.updatePriority(priority);
-        input.setSelectionRange(symbolPosition, symbolPosition);
-        input.focus();
-        break;
-      case "Project":
-        input.value = beforeSymbol + afterCursor;
-        this.dataHandler.taskDescription = input.value;
-        this.dataHandler.selectedProject = option;
-        this.ui.updateProject(option);
-        input.setSelectionRange(symbolPosition, symbolPosition);
-        input.focus();
-        break;
-      case "Context":
-        const ctxValue = beforeSymbol + `@${option} ` + afterCursor;
-        input.value = ctxValue;
-        this.dataHandler.taskDescription = input.value;
-        const ctxPosition = symbolPosition + option.length + 2;
-        input.setSelectionRange(ctxPosition, ctxPosition);
-        input.focus();
-        break;
-    }
-    this.mainMenuMode = "";
-    this.mainMenuHandler.updateItems(["Date", "Priority", "Project", "Context"]);
-    this.activeHandler = null;
-    return true;
-  }
-  // Handle main menu category selection
-  handleMainMenuSelection(option, value, symbolPosition, cursorPosition, input) {
-    this.mainMenuMode = option;
-    switch (option) {
-      case "Date":
-        this.mainMenuHandler.updateItems(["Today", "Tomorrow", "Next Week", "Next Month", "Repeat"]);
-        break;
-      case "Priority":
-        this.mainMenuHandler.updateItems(["High", "Medium", "Low", "None"]);
-        break;
-      case "Project":
-        const projectsForMenu = [...this.dataHandler.availableProjects];
-        if (!projectsForMenu.includes("Inbox")) {
-          projectsForMenu.unshift("Inbox");
-        }
-        this.mainMenuHandler.updateItems(projectsForMenu);
-        break;
-      case "Context":
-        this.mainMenuHandler.updateItems(this.dataHandler.availableContexts);
-        break;
-    }
-    const searchTerm = value.substring(symbolPosition + 1, cursorPosition).toLowerCase();
-    this.mainMenuHandler.showSuggestions(searchTerm, input, cursorPosition);
-    return false;
+  // Get projects ordered for display
+  getOrderedProjectsForSuggestions() {
+    const availableProjects = [...this.dataHandler.availableProjects];
+    const orderedProjects = [];
+    orderedProjects.push("Inbox");
+    const otherProjects = availableProjects.filter(
+      (project) => project !== "Inbox" && project !== "Archived"
+    );
+    orderedProjects.push(...otherProjects);
+    orderedProjects.push("Archived");
+    return orderedProjects;
   }
   getActiveHandler() {
     return this.activeHandler;
@@ -2358,24 +2659,26 @@ var SuggestionManager = class {
   setActiveHandler(handler) {
     this.activeHandler = handler;
   }
-  // Reset all mode states
+  // Reset all states
   resetModes() {
     if (this.isInRepeatMode) {
       this.isInRepeatMode = false;
       this.dueDateHandler.updateItems(["Today", "Tomorrow", "Next Week", "Next Month", "Repeat"]);
     }
-    if (this.mainMenuMode) {
-      this.mainMenuMode = "";
-      this.mainMenuHandler.updateItems(["Date", "Priority", "Project", "Context"]);
-    }
+    this.mainMenuHandler.resetMode();
   }
-  // Clean up all handlers
+  // Update contexts
+  updateContextItems(newContexts) {
+    this.contextHandler.updateItems(newContexts);
+    this.mainMenuHandler.updateContextItems(newContexts);
+  }
   cleanup() {
     this.contextHandler.cleanup();
     this.priorityHandler.cleanup();
     this.projectHandler.cleanup();
     this.dueDateHandler.cleanup();
     this.mainMenuHandler.cleanup();
+    this.wikiLinkHandler.cleanup();
     this.resetModes();
   }
 };
@@ -2394,17 +2697,19 @@ var TaskInputHandler = class {
     if (this.dataHandler.priority) {
       this.ui.updatePriority(this.dataHandler.priority);
     }
+    const wikiLinkPosition = value.lastIndexOf("[[", cursorPosition - 1);
     const atPosition = value.lastIndexOf("@", cursorPosition - 1);
     const exclamationPosition = value.lastIndexOf("!", cursorPosition - 1);
     const plusPosition = value.lastIndexOf("+", cursorPosition - 1);
     const asteriskPosition = value.lastIndexOf("*", cursorPosition - 1);
     const slashPosition = value.lastIndexOf("/", cursorPosition - 1);
     const positions = [
-      { pos: atPosition, handler: this.suggestionManager.contextHandler, symbol: "@" },
-      { pos: exclamationPosition, handler: this.suggestionManager.priorityHandler, symbol: "!" },
-      { pos: plusPosition, handler: this.suggestionManager.projectHandler, symbol: "+" },
-      { pos: asteriskPosition, handler: this.suggestionManager.dueDateHandler, symbol: "*" },
-      { pos: slashPosition, handler: this.suggestionManager.mainMenuHandler, symbol: "/" }
+      { pos: wikiLinkPosition, handler: this.suggestionManager.wikiLinkHandler, symbol: "[[", length: 2 },
+      { pos: atPosition, handler: this.suggestionManager.contextHandler, symbol: "@", length: 1 },
+      { pos: exclamationPosition, handler: this.suggestionManager.priorityHandler, symbol: "!", length: 1 },
+      { pos: plusPosition, handler: this.suggestionManager.projectHandler, symbol: "+", length: 1 },
+      { pos: asteriskPosition, handler: this.suggestionManager.dueDateHandler, symbol: "*", length: 1 },
+      { pos: slashPosition, handler: this.suggestionManager.mainMenuHandler, symbol: "/", length: 1 }
     ].filter((p) => p.pos !== -1).sort((a, b) => b.pos - a.pos);
     const activeHandler = this.suggestionManager.getActiveHandler();
     if (activeHandler === this.suggestionManager.dueDateHandler && (positions.length === 0 || positions[0].handler !== this.suggestionManager.dueDateHandler)) {
@@ -2414,9 +2719,14 @@ var TaskInputHandler = class {
       this.suggestionManager.resetModes();
     }
     if (positions.length > 0 && positions[0].pos < cursorPosition) {
-      const { pos, handler, symbol } = positions[0];
-      const searchTerm = value.substring(pos + 1, cursorPosition);
-      const hasSpaceAfter = searchTerm.includes(" ");
+      const { pos, handler, symbol, length } = positions[0];
+      const searchTerm = value.substring(pos + length, cursorPosition);
+      if (symbol === "[[" && value.substring(pos, cursorPosition).includes("]]")) {
+        this.hideAllSuggestions();
+        this.suggestionManager.setActiveHandler(null);
+        return;
+      }
+      const hasSpaceAfter = searchTerm.includes(" ") && symbol !== "[[";
       if (!hasSpaceAfter) {
         this.hideAllSuggestionsExcept(handler);
         const hasSuggestions = handler.showSuggestions(
@@ -2439,12 +2749,8 @@ var TaskInputHandler = class {
   // Handle keyboard navigation and submission
   handleKeyDown(e, onSubmit) {
     const activeHandler = this.suggestionManager.getActiveHandler();
-    if (activeHandler && activeHandler.handleKeyNavigation(e)) {
-      return;
-    }
-    if (e.key === "Enter" && !activeHandler) {
-      e.preventDefault();
-      onSubmit();
+    if (activeHandler && e.key !== "Enter") {
+      activeHandler.handleKeyNavigation(e);
     }
   }
   // Show suggestions on trigger symbol typed
@@ -2475,7 +2781,7 @@ var TaskInputHandler = class {
   }
   // Hide all suggestions except the active one
   hideAllSuggestionsExcept(exceptHandler) {
-    const { contextHandler, priorityHandler, projectHandler, dueDateHandler, mainMenuHandler } = this.suggestionManager;
+    const { contextHandler, priorityHandler, projectHandler, dueDateHandler, mainMenuHandler, wikiLinkHandler } = this.suggestionManager;
     if (exceptHandler !== contextHandler)
       contextHandler.hideSuggestions();
     if (exceptHandler !== priorityHandler)
@@ -2486,6 +2792,8 @@ var TaskInputHandler = class {
       dueDateHandler.hideSuggestions();
     if (exceptHandler !== mainMenuHandler)
       mainMenuHandler.hideSuggestions();
+    if (exceptHandler !== wikiLinkHandler)
+      wikiLinkHandler.hideSuggestions();
   }
   // Hide all suggestion dropdowns
   hideAllSuggestions() {
@@ -2494,6 +2802,7 @@ var TaskInputHandler = class {
     this.suggestionManager.projectHandler.hideSuggestions();
     this.suggestionManager.dueDateHandler.hideSuggestions();
     this.suggestionManager.mainMenuHandler.hideSuggestions();
+    this.suggestionManager.wikiLinkHandler.hideSuggestions();
   }
 };
 
@@ -2524,8 +2833,64 @@ var AddTaskModal = class extends import_obsidian2.Modal {
       } : void 0,
       () => this.close()
     );
-    this.suggestionManager = new SuggestionManager(this.dataHandler, this.ui);
+    this.suggestionManager = new SuggestionManager(
+      this.dataHandler,
+      this.ui,
+      this.app,
+      async (projectName) => {
+        const projectContexts = await this.getContextsForProject(projectName);
+        this.dataHandler.updateAvailableContexts(projectContexts);
+        this.suggestionManager.updateContextItems(projectContexts);
+      }
+    );
+    this.notesSuggestionManager = new SuggestionManager(
+      this.dataHandler,
+      this.ui,
+      this.app,
+      async (projectName) => {
+        const projectContexts = await this.getContextsForProject(projectName);
+        this.dataHandler.updateAvailableContexts(projectContexts);
+        this.notesSuggestionManager.updateContextItems(projectContexts);
+      }
+    );
     this.inputHandler = new TaskInputHandler(this.dataHandler, this.ui, this.suggestionManager);
+  }
+  // Get contexts for a specific project
+  async getContextsForProject(projectName) {
+    try {
+      const files = this.app.vault.getFiles().filter((f) => f.extension === "txt");
+      if (files.length === 0)
+        return this.dataHandler.availableContexts;
+      const file = files[0];
+      const content = await this.app.vault.read(file);
+      const lines = content.split("\n").filter((line) => line.trim().length > 0);
+      const contextsSet = /* @__PURE__ */ new Set();
+      lines.forEach((line) => {
+        if (line.trim().startsWith("x ")) {
+          return;
+        }
+        if (line.includes(`+${projectName}`) || projectName === "Inbox") {
+          let cleanLine = line;
+          const notesIndex = cleanLine.indexOf("||");
+          if (notesIndex !== -1) {
+            cleanLine = cleanLine.substring(0, notesIndex).trim();
+          }
+          cleanLine = cleanLine.replace(/^KATEX_INLINE_OPEN[A-Z]KATEX_INLINE_CLOSE\s+/, "");
+          cleanLine = cleanLine.replace(/^\d{4}-\d{2}-\d{2}\s+/, "");
+          const contextMatches = cleanLine.match(/(?:^|\s)@(\S+)/g);
+          if (contextMatches) {
+            contextMatches.forEach((match) => {
+              const context = match.trim().substring(1);
+              contextsSet.add(context);
+            });
+          }
+        }
+      });
+      return Array.from(contextsSet).sort();
+    } catch (error) {
+      console.error("Error fetching contexts for project:", error);
+      return this.dataHandler.availableContexts;
+    }
   }
   // Set up modal UI and event handlers
   onOpen() {
@@ -2534,13 +2899,25 @@ var AddTaskModal = class extends import_obsidian2.Modal {
       this.inputHandler.handleTaskDescriptionChange(value, cursorPosition);
     });
     this.ui.onKeyDown((e) => {
+      const activeHandler = this.suggestionManager.getActiveHandler();
+      if (activeHandler && activeHandler.handleKeyNavigation(e)) {
+        return;
+      }
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        this.submitTask();
+        return;
+      }
       this.inputHandler.handleKeyDown(e, () => this.submitTask());
     });
     this.ui.onKeyUp((e) => {
       this.inputHandler.handleKeyUp(e);
     });
-    this.ui.onProjectChange((project) => {
+    this.ui.onProjectChange(async (project) => {
       this.dataHandler.selectedProject = project;
+      const projectContexts = await this.getContextsForProject(project);
+      this.dataHandler.updateAvailableContexts(projectContexts);
+      this.suggestionManager.updateContextItems(projectContexts);
     });
     this.ui.onPriorityChange((priority) => {
       this.dataHandler.priority = priority;
@@ -2552,6 +2929,25 @@ var AddTaskModal = class extends import_obsidian2.Modal {
     this.ui.onTaskDescriptionNotesChange((value) => {
       this.dataHandler.taskDescriptionNotes = value;
     });
+    this.ui.onTaskDescriptionNotesInputChange((value, cursorPosition) => {
+      this.dataHandler.taskDescriptionNotes = value;
+      this.handleNotesInputChange(value, cursorPosition);
+    });
+    this.ui.onTaskDescriptionNotesKeyDown((e) => {
+      if (this.handleNotesKeyDown(e)) {
+        return;
+      }
+      if (e.key === "Enter" && !e.shiftKey) {
+        const isMobile = window.innerWidth <= 768;
+        if (!isMobile) {
+          e.preventDefault();
+          this.submitTask();
+        }
+      }
+    });
+    this.ui.onTaskDescriptionNotesKeyUp((e) => {
+      this.handleNotesKeyUp(e);
+    });
     setTimeout(() => this.ui.focusInput(), 100);
   }
   // Build and submit task line
@@ -2562,10 +2958,59 @@ var AddTaskModal = class extends import_obsidian2.Modal {
       this.close();
     }
   }
+  // Handle notes input for WikiLink suggestions
+  handleNotesInputChange(value, cursorPosition) {
+    const wikiLinkPosition = value.lastIndexOf("[[", cursorPosition - 1);
+    if (wikiLinkPosition !== -1 && wikiLinkPosition < cursorPosition) {
+      const searchTerm = value.substring(wikiLinkPosition + 2, cursorPosition);
+      if (value.substring(wikiLinkPosition, cursorPosition).includes("]]")) {
+        this.notesSuggestionManager.wikiLinkHandler.hideSuggestions();
+        return;
+      }
+      const notesInput = this.ui.getTaskNotesInputElement();
+      if (notesInput) {
+        this.notesSuggestionManager.wikiLinkHandler.showSuggestions(
+          searchTerm.toLowerCase(),
+          notesInput,
+          cursorPosition
+        );
+      }
+    } else {
+      this.notesSuggestionManager.wikiLinkHandler.hideSuggestions();
+    }
+  }
+  // Handle notes keyboard navigation
+  handleNotesKeyDown(e) {
+    if (this.notesSuggestionManager.wikiLinkHandler.handleKeyNavigation(e)) {
+      return true;
+    }
+    return false;
+  }
+  // Handle notes keyup for WikiLink trigger
+  handleNotesKeyUp(e) {
+    if (e.key === "[") {
+      setTimeout(() => {
+        const notesInput = this.ui.getTaskNotesInputElement();
+        if (notesInput) {
+          const cursorPosition = notesInput.selectionStart || 0;
+          const value = notesInput.value;
+          const wikiLinkPosition = value.lastIndexOf("[[", cursorPosition - 1);
+          if (wikiLinkPosition !== -1 && wikiLinkPosition === cursorPosition - 2) {
+            this.notesSuggestionManager.wikiLinkHandler.showSuggestions(
+              "",
+              notesInput,
+              cursorPosition
+            );
+          }
+        }
+      }, 0);
+    }
+  }
   // Clean up modal resources
   onClose() {
     this.contentEl.empty();
     this.suggestionManager.cleanup();
+    this.notesSuggestionManager.cleanup();
   }
 };
 
@@ -2879,6 +3324,70 @@ var AddProjectModal = class extends import_obsidian4.Modal {
   }
 };
 
+// src/utils/projectPersistence.ts
+var ProjectPersistence = class {
+  constructor(plugin) {
+    this.plugin = plugin;
+  }
+  // Save pinned projects to settings
+  async savePinnedProjects(file, pinnedProjects) {
+    if (!file)
+      return;
+    if (!this.plugin.settings.pinnedProjects) {
+      this.plugin.settings.pinnedProjects = {};
+    }
+    this.plugin.settings.pinnedProjects[file.path] = [...pinnedProjects];
+    await this.plugin.saveSettings();
+  }
+  // Load pinned projects from settings
+  loadPinnedProjects(file) {
+    if (!file)
+      return [];
+    if (this.plugin.settings.pinnedProjects && this.plugin.settings.pinnedProjects[file.path]) {
+      return [...this.plugin.settings.pinnedProjects[file.path]];
+    }
+    return [];
+  }
+  // Save all known projects to settings
+  async saveAllKnownProjects(file, allKnownProjects) {
+    if (!file)
+      return;
+    if (!this.plugin.settings.allKnownProjects) {
+      this.plugin.settings.allKnownProjects = {};
+    }
+    this.plugin.settings.allKnownProjects[file.path] = [...allKnownProjects];
+    await this.plugin.saveSettings();
+  }
+  // Load all known projects from settings
+  loadAllKnownProjects(file) {
+    if (!file)
+      return [];
+    if (this.plugin.settings.allKnownProjects && this.plugin.settings.allKnownProjects[file.path]) {
+      return [...this.plugin.settings.allKnownProjects[file.path]];
+    }
+    return [];
+  }
+  // Save project icons to settings
+  async saveProjectIcons(file, projectIcons) {
+    if (!file)
+      return;
+    if (!this.plugin.settings.projectIcons) {
+      this.plugin.settings.projectIcons = {};
+    }
+    this.plugin.settings.projectIcons[file.path] = Object.fromEntries(projectIcons);
+    await this.plugin.saveSettings();
+  }
+  // Load project icons from settings
+  loadProjectIcons(file) {
+    if (!file)
+      return /* @__PURE__ */ new Map();
+    if (this.plugin.settings.projectIcons && this.plugin.settings.projectIcons[file.path]) {
+      return new Map(Object.entries(this.plugin.settings.projectIcons[file.path]));
+    }
+    return /* @__PURE__ */ new Map();
+  }
+};
+
 // src/managers/projectManager.ts
 var ProjectManager = class {
   constructor(plugin) {
@@ -2896,6 +3405,7 @@ var ProjectManager = class {
     };
     this.onProjectPin = async () => {
     };
+    this.persistence = new ProjectPersistence(plugin);
   }
   // Extract projects from todo items
   updateFromTodoItems(items) {
@@ -2910,6 +3420,14 @@ var ProjectManager = class {
       });
     });
     this.allKnownProjects.push(...newProjects);
+  }
+  // Update projects from todo items and save if needed
+  async updateAndSaveFromTodoItems(items, file) {
+    const oldProjectsCount = this.allKnownProjects.length;
+    this.updateFromTodoItems(items);
+    if (this.allKnownProjects.length > oldProjectsCount) {
+      await this.saveAllKnownProjects(file);
+    }
   }
   // Count active tasks per project
   getProjectCounts(items) {
@@ -2981,6 +3499,10 @@ var ProjectManager = class {
     projects.push("Archived");
     return projects.sort();
   }
+  // Get project icon
+  getProjectIcon(projectName) {
+    return this.projectIcons.get(projectName) || "";
+  }
   // Open modal to create project
   openAddProjectModal(file) {
     const modal = new AddProjectModal(
@@ -3014,30 +3536,6 @@ var ProjectManager = class {
       currentIcon
     );
     modal.open();
-  }
-  // Save icons to settings
-  async saveProjectIcons(file) {
-    if (!file)
-      return;
-    if (!this.plugin.settings.projectIcons) {
-      this.plugin.settings.projectIcons = {};
-    }
-    this.plugin.settings.projectIcons[file.path] = Object.fromEntries(this.projectIcons);
-    await this.plugin.saveSettings();
-  }
-  // Load icons from settings
-  loadProjectIcons(file) {
-    if (!file)
-      return;
-    if (this.plugin.settings.projectIcons && this.plugin.settings.projectIcons[file.path]) {
-      this.projectIcons = new Map(Object.entries(this.plugin.settings.projectIcons[file.path]));
-    } else {
-      this.projectIcons = /* @__PURE__ */ new Map();
-    }
-  }
-  // Get project icon
-  getProjectIcon(projectName) {
-    return this.projectIcons.get(projectName) || "";
   }
   // Show context menu for project
   showProjectMenu(event, projectName, file) {
@@ -3137,45 +3635,24 @@ var ProjectManager = class {
     await this.savePinnedProjects(file);
     await this.saveProjectIcons(file);
   }
-  // Save pinned projects to settings
+  // Persistence delegation methods
   async savePinnedProjects(file) {
-    if (!file)
-      return;
-    if (!this.plugin.settings.pinnedProjects) {
-      this.plugin.settings.pinnedProjects = {};
-    }
-    this.plugin.settings.pinnedProjects[file.path] = [...this.pinnedProjects];
-    await this.plugin.saveSettings();
+    await this.persistence.savePinnedProjects(file, this.pinnedProjects);
   }
-  // Load pinned projects from settings
   loadPinnedProjects(file) {
-    if (!file)
-      return;
-    if (this.plugin.settings.pinnedProjects && this.plugin.settings.pinnedProjects[file.path]) {
-      this.pinnedProjects = [...this.plugin.settings.pinnedProjects[file.path]];
-    } else {
-      this.pinnedProjects = [];
-    }
+    this.pinnedProjects = this.persistence.loadPinnedProjects(file);
   }
-  // Save all known projects to settings
   async saveAllKnownProjects(file) {
-    if (!file)
-      return;
-    if (!this.plugin.settings.allKnownProjects) {
-      this.plugin.settings.allKnownProjects = {};
-    }
-    this.plugin.settings.allKnownProjects[file.path] = [...this.allKnownProjects];
-    await this.plugin.saveSettings();
+    await this.persistence.saveAllKnownProjects(file, this.allKnownProjects);
   }
-  // Load all known projects from settings
   loadAllKnownProjects(file) {
-    if (!file)
-      return;
-    if (this.plugin.settings.allKnownProjects && this.plugin.settings.allKnownProjects[file.path]) {
-      this.allKnownProjects = [...this.plugin.settings.allKnownProjects[file.path]];
-    } else {
-      this.allKnownProjects = [];
-    }
+    this.allKnownProjects = this.persistence.loadAllKnownProjects(file);
+  }
+  async saveProjectIcons(file) {
+    await this.persistence.saveProjectIcons(file, this.projectIcons);
+  }
+  loadProjectIcons(file) {
+    this.projectIcons = this.persistence.loadProjectIcons(file);
   }
 };
 
@@ -3487,9 +3964,7 @@ var StateManager = class {
     if (state.file) {
       const file = view.app.vault.getAbstractFileByPath(state.file);
       if (file instanceof import_obsidian5.TFile) {
-        view.setFile(file);
-        const content = await view.app.vault.read(file);
-        await view.setViewData(content, true);
+        await view.leaf.openFile(file);
       } else {
         await view.loadDefaultFile();
       }
@@ -3540,18 +4015,18 @@ var FileService = class {
     await this.writeFile(file, filteredLines.join("\n"));
   }
   // Add new task line to file
-  async appendTaskLine(file, taskLine) {
+  async prependTaskLine(file, taskLine) {
     const currentContent = await this.readFile(file);
     if (!currentContent.trim()) {
       await this.writeFile(file, taskLine);
       return;
     }
     const lines = currentContent.split("\n");
-    const lastLine = lines[lines.length - 1].trim();
-    const lastDate = this.extractCreationDate(lastLine);
+    const firstLine = lines[0].trim();
+    const firstDate = this.extractCreationDate(firstLine);
     const newDate = this.extractCreationDate(taskLine);
-    const separator = lastDate && newDate && lastDate !== newDate ? "\n\n" : "\n";
-    const newContent = `${currentContent}${separator}${taskLine}`;
+    const separator = firstDate && newDate && firstDate !== newDate ? "\n\n" : "\n";
+    const newContent = `${taskLine}${separator}${currentContent}`;
     await this.writeFile(file, newContent);
   }
   // Extract date from task line
@@ -3579,8 +4054,21 @@ var FileService = class {
   async removeProjectFromTasks(file, projectName) {
     const currentContent = await this.readFile(file);
     const lines = currentContent.split("\n");
-    const filteredLines = lines.filter((line) => !line.includes(`+${projectName}`));
-    await this.writeFile(file, filteredLines.join("\n"));
+    const updatedLines = lines.map((line) => {
+      if (!line.trim()) {
+        return line;
+      }
+      if (!line.includes(`+${projectName}`)) {
+        return line;
+      }
+      const isCompleted = line.trim().startsWith("x ");
+      if (isCompleted) {
+        return line.replace(new RegExp(`\\s*\\+${projectName}\\b`, "g"), "");
+      } else {
+        return null;
+      }
+    }).filter((line) => line !== null);
+    await this.writeFile(file, updatedLines.join("\n"));
   }
 };
 
@@ -3751,7 +4239,7 @@ var TaskService = class {
         const nextDue = RecurrenceCalculator.calculateNextDueDate(currentDue, recPattern);
         let newTaskLine = item.raw.replace(/due:\d{4}-\d{2}-\d{2}/, `due:${nextDue}`);
         newTaskLine = newTaskLine.replace(/^x\s+\d{4}-\d{2}-\d{2}\s+/, "");
-        await this.fileService.appendTaskLine(file, newTaskLine);
+        await this.fileService.prependTaskLine(file, newTaskLine);
       }
     }
     let completedLine = `x ${today} ${cleanedLine}`;
@@ -3779,6 +4267,16 @@ var TaskService = class {
       const priority = priMatch[1];
       taskLine = taskLine.replace(/\s*pri:[A-Z]\b/, "");
       taskLine = `(${priority}) ${taskLine}`;
+    }
+    if (item.projects.length === 0) {
+      const notesMatch = taskLine.match(/(\s+\|\|.*)$/);
+      if (notesMatch) {
+        const beforeNotes = taskLine.substring(0, taskLine.lastIndexOf(notesMatch[1]));
+        const notePart = notesMatch[1];
+        taskLine = `${beforeNotes} +Inbox${notePart}`;
+      } else {
+        taskLine += " +Inbox";
+      }
     }
     await this.fileService.updateTaskLine(file, item, taskLine);
   }
@@ -3822,7 +4320,7 @@ var TaskService = class {
   }
   // Add new task
   async addNewTask(file, taskLine) {
-    await this.fileService.appendTaskLine(file, taskLine);
+    await this.fileService.prependTaskLine(file, taskLine);
   }
   // Move task from archived back to original project
   async moveTaskFromArchivedToInbox(file, item) {
@@ -3921,12 +4419,11 @@ var ProjectService = class {
 };
 
 // src/view.ts
-var TodoTxtView = class extends import_obsidian6.ItemView {
+var TodoTxtView = class extends import_obsidian6.TextFileView {
   constructor(leaf, plugin) {
     super(leaf);
     this.plugin = plugin;
     this.todoItems = [];
-    this.file = null;
     this.fileService = new FileService(this.app.vault);
     this.taskService = new TaskService(this.fileService);
     this.filterManager = new FilterManager();
@@ -3935,7 +4432,7 @@ var TodoTxtView = class extends import_obsidian6.ItemView {
     this.taskManager = new TaskManager(this.app);
     this.stateManager = new StateManager();
     this.renderer = new ViewRenderer(
-      this.containerEl,
+      this.contentEl,
       this.taskManager,
       this.projectManager,
       this.filterManager,
@@ -4041,34 +4538,35 @@ var TodoTxtView = class extends import_obsidian6.ItemView {
   getViewType() {
     return VIEW_TYPE_TODO_TXT;
   }
-  getDisplayText() {
-    var _a;
-    return ((_a = this.file) == null ? void 0 : _a.basename) || "Tasks";
-  }
   getIcon() {
     return "circle-check-big";
   }
-  // Initialize view container
-  async onOpen() {
-    this.containerEl.empty();
-    this.containerEl.addClass("todo-txt-view");
-    this.render();
+  getViewData() {
+    return this.data || "";
   }
-  // Parse and set todo data
-  async setViewData(data, clear) {
+  setViewData(data, clear) {
+    this.data = data;
     if (clear) {
       this.todoItems = [];
     }
     this.todoItems = TodoParser.parseTodoTxt(data);
-    this.updateManagers();
-    this.refresh();
+    this.updateManagers().then(() => this.refresh());
   }
-  // Set current file and load settings
-  setFile(file) {
-    this.file = file;
+  clear() {
+    this.contentEl.empty();
+  }
+  // Called when view opens
+  async onOpen() {
+    this.contentEl.empty();
+    this.contentEl.addClass("todo-txt-view");
+    this.render();
+  }
+  // Called when file loads
+  async onLoadFile(file) {
     this.projectManager.loadPinnedProjects(file);
     this.projectManager.loadAllKnownProjects(file);
     this.projectManager.loadProjectIcons(file);
+    await super.onLoadFile(file);
   }
   // Restore view state
   async setState(state, result) {
@@ -4080,9 +4578,13 @@ var TodoTxtView = class extends import_obsidian6.ItemView {
     return this.stateManager.saveState(this);
   }
   // Update managers with current data
-  updateManagers() {
+  async updateManagers() {
     this.taskManager.setTodoItems(this.todoItems);
+    const oldProjectsCount = this.projectManager.allKnownProjects.length;
     this.projectManager.updateFromTodoItems(this.todoItems);
+    if (this.projectManager.allKnownProjects.length > oldProjectsCount) {
+      await this.projectManager.saveAllKnownProjects(this.file);
+    }
     const contexts = /* @__PURE__ */ new Set();
     const projects = /* @__PURE__ */ new Set();
     this.todoItems.forEach((item) => {
@@ -4113,7 +4615,7 @@ var TodoTxtView = class extends import_obsidian6.ItemView {
   async loadFileContent() {
     if (this.file) {
       const content = await this.fileService.readFile(this.file);
-      await this.setViewData(content, true);
+      this.setViewData(content, true);
     }
   }
   // Open task creation modal
@@ -4129,6 +4631,11 @@ var TodoTxtView = class extends import_obsidian6.ItemView {
   setFilter(filter) {
     this.filterManager.setQuickFilter(filter);
   }
+  // Clean up on view close
+  async onClose() {
+    this.renderer.destroy();
+    await super.onClose();
+  }
   getFile() {
     return this.file;
   }
@@ -4142,25 +4649,188 @@ var TodoTxtView = class extends import_obsidian6.ItemView {
   async loadDefaultFile() {
     try {
       const defaultFile = await this.plugin.getDefaultTodoFile();
-      this.file = defaultFile;
-      const content = await this.fileService.readFile(defaultFile);
-      await this.setViewData(content, true);
+      await this.leaf.openFile(defaultFile);
     } catch (error) {
       console.error("Failed to load default todo file:", error);
     }
   }
 };
 
+// src/utils/taskOperations.ts
+var TaskOperations = class {
+  constructor(app, settings) {
+    this.app = app;
+    this.settings = settings;
+  }
+  // Extract projects from todo line
+  extractProjectsFromLine(line) {
+    const projects = [];
+    let cleanLine = line;
+    const notesIndex = cleanLine.indexOf("||");
+    if (notesIndex !== -1) {
+      cleanLine = cleanLine.substring(0, notesIndex).trim();
+    }
+    cleanLine = cleanLine.replace(/^x\s+/, "");
+    cleanLine = cleanLine.replace(/^KATEX_INLINE_OPEN[A-Z]KATEX_INLINE_CLOSE\s+/, "");
+    cleanLine = cleanLine.replace(/^\d{4}-\d{2}-\d{2}\s+/, "");
+    cleanLine = cleanLine.replace(/^\d{4}-\d{2}-\d{2}\s+\d{4}-\d{2}-\d{2}\s+/, "");
+    const tokens = cleanLine.split(/\s+/);
+    for (const token of tokens) {
+      if (/^\+\w+$/.test(token)) {
+        const project = token.substring(1);
+        projects.push(project);
+      }
+    }
+    return projects;
+  }
+  // Extract contexts from todo line
+  extractContextsFromLine(line) {
+    const contexts = [];
+    let cleanLine = line;
+    const notesIndex = cleanLine.indexOf("||");
+    if (notesIndex !== -1) {
+      cleanLine = cleanLine.substring(0, notesIndex).trim();
+    }
+    cleanLine = cleanLine.replace(/^x\s+/, "");
+    cleanLine = cleanLine.replace(/^KATEX_INLINE_OPEN[A-Z]KATEX_INLINE_CLOSE\s+/, "");
+    cleanLine = cleanLine.replace(/^\d{4}-\d{2}-\d{2}\s+/, "");
+    cleanLine = cleanLine.replace(/^\d{4}-\d{2}-\d{2}\s+\d{4}-\d{2}-\d{2}\s+/, "");
+    const contextMatches = cleanLine.match(/(?:^|\s)@(\S+)/g);
+    if (contextMatches) {
+      contextMatches.forEach((match) => {
+        const context = match.trim().substring(1);
+        contexts.push(context);
+      });
+    }
+    return contexts;
+  }
+  // Get projects from file and settings
+  async getAvailableProjectsFromFile(file) {
+    try {
+      const projects = /* @__PURE__ */ new Set();
+      if (this.settings.allKnownProjects && this.settings.allKnownProjects[file.path]) {
+        this.settings.allKnownProjects[file.path].forEach((project) => {
+          if (project !== "Inbox") {
+            projects.add(project);
+          }
+        });
+      }
+      const content = await this.app.vault.read(file);
+      const lines = content.split("\n").filter((line) => line.trim().length > 0);
+      lines.forEach((line) => {
+        const projectsFromLine = this.extractProjectsFromLine(line);
+        projectsFromLine.forEach((project) => {
+          if (project !== "Inbox") {
+            projects.add(project);
+          }
+        });
+      });
+      return Array.from(projects).sort();
+    } catch (error) {
+      console.error("Error reading file for projects:", error);
+      if (this.settings.allKnownProjects && this.settings.allKnownProjects[file.path]) {
+        return this.settings.allKnownProjects[file.path].filter((project) => project !== "Inbox").sort();
+      }
+      return [];
+    }
+  }
+  // Extract contexts from file
+  async getAvailableContextsFromFile(file) {
+    try {
+      const content = await this.app.vault.read(file);
+      const contexts = /* @__PURE__ */ new Set();
+      const lines = content.split("\n").filter((line) => line.trim().length > 0);
+      lines.forEach((line) => {
+        if (line.trim().startsWith("x ")) {
+          return;
+        }
+        const contextsFromLine = this.extractContextsFromLine(line);
+        contextsFromLine.forEach((context) => {
+          contexts.add(context);
+        });
+      });
+      return Array.from(contexts).sort();
+    } catch (error) {
+      console.error("Error reading file for contexts:", error);
+      return [];
+    }
+  }
+  // Convert filter to state
+  getStartupState(filter) {
+    switch (filter.toLowerCase()) {
+      case "all":
+        return { selectedProject: "", selectedTimeFilter: "", archivedFilter: false, completedFilter: false };
+      case "inbox":
+        return { selectedProject: "Inbox", selectedTimeFilter: "", archivedFilter: false, completedFilter: false };
+      case "today":
+        return { selectedProject: "", selectedTimeFilter: "today", archivedFilter: false, completedFilter: false };
+      case "upcoming":
+        return { selectedProject: "", selectedTimeFilter: "upcoming", archivedFilter: false, completedFilter: false };
+      case "archived":
+        return { selectedProject: "", selectedTimeFilter: "", archivedFilter: true, completedFilter: false };
+      case "completed":
+        return { selectedProject: "", selectedTimeFilter: "", archivedFilter: false, completedFilter: true };
+      default:
+        return { selectedProject: filter, selectedTimeFilter: "", archivedFilter: false, completedFilter: false };
+    }
+  }
+};
+
+// src/utils/fileOperations.ts
+var import_obsidian7 = require("obsidian");
+var FileOperations = class {
+  constructor(app) {
+    this.app = app;
+  }
+  // Get or create default file
+  async getDefaultTodoFile(todoFilePath) {
+    let path = todoFilePath.trim();
+    if (!path) {
+      path = DEFAULT_SETTINGS.todoFilePath;
+    }
+    let file = this.app.vault.getAbstractFileByPath(path);
+    if (!file) {
+      const folderPath = path.substring(0, path.lastIndexOf("/"));
+      if (folderPath && folderPath !== path) {
+        try {
+          await this.createFolderRecursive(folderPath);
+        } catch (error) {
+        }
+      }
+      await this.app.vault.create(path, "");
+      file = this.app.vault.getAbstractFileByPath(path);
+    }
+    if (file instanceof import_obsidian7.TFile) {
+      return file;
+    } else {
+      throw new Error("Failed to get or create default Todo.txt file");
+    }
+  }
+  // Create folders recursively
+  async createFolderRecursive(folderPath) {
+    const parts = folderPath.split("/");
+    let currentPath = "";
+    for (const part of parts) {
+      currentPath = currentPath ? `${currentPath}/${part}` : part;
+      if (!this.app.vault.getAbstractFileByPath(currentPath)) {
+        await this.app.vault.createFolder(currentPath);
+      }
+    }
+  }
+};
+
 // src/main.ts
-var TodoTxtPlugin = class extends import_obsidian7.Plugin {
+var TodoTxtPlugin = class extends import_obsidian8.Plugin {
   async onload() {
     console.log("Loading Todo.txt plugin...");
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    this.taskOps = new TaskOperations(this.app, this.settings);
+    this.fileOps = new FileOperations(this.app);
     this.registerView(VIEW_TYPE_TODO_TXT, (leaf) => new TodoTxtView(leaf, this));
     this.registerExtensions(["txt"], VIEW_TYPE_TODO_TXT);
     this.registerEvent(
       this.app.vault.on("rename", async (file, oldPath) => {
-        if (file instanceof import_obsidian7.TFile && file.extension === "txt") {
+        if (file instanceof import_obsidian8.TFile && file.extension === "txt") {
           await this.handleFileRename(file, oldPath);
         }
       })
@@ -4183,6 +4853,29 @@ var TodoTxtPlugin = class extends import_obsidian7.Plugin {
         } else {
           this.openAddTaskModal();
         }
+      }
+    });
+    this.addCommand({
+      id: "create-new-file",
+      name: "Create new file",
+      callback: async () => {
+        const todoPath = this.settings.todoFilePath;
+        const folder = todoPath.substring(0, todoPath.lastIndexOf("/"));
+        const fileName = todoPath.substring(todoPath.lastIndexOf("/") + 1);
+        const baseName = fileName.replace(".txt", "");
+        if (!this.app.vault.getAbstractFileByPath(todoPath)) {
+          const newFile2 = await this.app.vault.create(todoPath, "");
+          await this.openTodoTxtView(newFile2);
+          return;
+        }
+        let counter = 1;
+        let newPath = `${folder}/${baseName} ${counter}.txt`;
+        while (this.app.vault.getAbstractFileByPath(newPath)) {
+          counter++;
+          newPath = `${folder}/${baseName} ${counter}.txt`;
+        }
+        const newFile = await this.app.vault.create(newPath, "");
+        await this.openTodoTxtView(newFile);
       }
     });
     if (this.settings.openOnStartup) {
@@ -4232,64 +4925,53 @@ var TodoTxtPlugin = class extends import_obsidian7.Plugin {
   // Open task modal for default file
   async openAddTaskModal() {
     const defaultFile = await this.getDefaultTodoFile();
-    const availableProjects = await this.getAvailableProjectsFromFile(defaultFile);
-    const availableContexts = await this.getAvailableContextsFromFile(defaultFile);
+    const availableProjects = await this.taskOps.getAvailableProjectsFromFile(defaultFile);
+    const availableContexts = await this.taskOps.getAvailableContextsFromFile(defaultFile);
     const modal = new AddTaskModal(this.app, async (taskLine) => {
       await this.addTaskToDefaultFile(taskLine);
     }, availableProjects, availableContexts);
     modal.open();
   }
-  // Extract projects from file
-  async getAvailableProjectsFromFile(file) {
-    try {
-      const content = await this.app.vault.read(file);
-      const projects = /* @__PURE__ */ new Set();
-      const lines = content.split("\n").filter((line) => line.trim().length > 0);
-      lines.forEach((line) => {
-        const projectMatches = line.match(/\+(\w+)/g);
-        if (projectMatches) {
-          projectMatches.forEach((match) => {
-            const project = match.substring(1);
-            if (project !== "Inbox") {
-              projects.add(project);
-            }
-          });
-        }
-      });
-      return Array.from(projects).sort();
-    } catch (error) {
-      console.error("Error reading file for projects:", error);
-      return [];
-    }
-  }
-  // Extract contexts from file
-  async getAvailableContextsFromFile(file) {
-    try {
-      const content = await this.app.vault.read(file);
-      const contexts = /* @__PURE__ */ new Set();
-      const lines = content.split("\n").filter((line) => line.trim().length > 0);
-      lines.forEach((line) => {
-        const contextMatches = line.match(/@(\w+)/g);
-        if (contextMatches) {
-          contextMatches.forEach((match) => {
-            const context = match.substring(1);
-            contexts.add(context);
-          });
-        }
-      });
-      return Array.from(contexts).sort();
-    } catch (error) {
-      console.error("Error reading file for contexts:", error);
-      return [];
-    }
-  }
   // Add task to default file
   async addTaskToDefaultFile(taskLine) {
+    var _a;
     const defaultFile = await this.getDefaultTodoFile();
     const currentContent = await this.app.vault.read(defaultFile);
-    const newContent = currentContent ? `${currentContent}
-${taskLine}` : taskLine;
+    const newContent = currentContent ? `${taskLine}
+${currentContent}` : taskLine;
     await this.app.vault.modify(defaultFile, newContent);
+    const projects = this.taskOps.extractProjectsFromLine(taskLine);
+    if (projects.length > 0) {
+      if (!this.settings.allKnownProjects) {
+        this.settings.allKnownProjects = {};
+      }
+      if (!this.settings.allKnownProjects[defaultFile.path]) {
+        this.settings.allKnownProjects[defaultFile.path] = [];
+      }
+      let projectsAdded = false;
+      projects.forEach((project) => {
+        if (!this.settings.allKnownProjects[defaultFile.path].includes(project) && project !== "Inbox" && project !== "Archived") {
+          this.settings.allKnownProjects[defaultFile.path].push(project);
+          projectsAdded = true;
+        }
+      });
+      if (projectsAdded) {
+        await this.saveSettings();
+      }
+      const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_TODO_TXT);
+      for (const leaf of leaves) {
+        const view = leaf.view;
+        if (((_a = view.getFile()) == null ? void 0 : _a.path) === defaultFile.path) {
+          const projectManager = view.getProjectManager();
+          projects.forEach((project) => {
+            if (!projectManager.allKnownProjects.includes(project) && project !== "Inbox" && project !== "Archived") {
+              projectManager.allKnownProjects.push(project);
+            }
+          });
+          break;
+        }
+      }
+    }
   }
   // Open todo view for file
   async openTodoTxtView(file) {
@@ -4302,57 +4984,7 @@ ${taskLine}` : taskLine;
   }
   // Get or create default file
   async getDefaultTodoFile() {
-    let path = this.settings.todoFilePath.trim();
-    if (!path) {
-      path = DEFAULT_SETTINGS.todoFilePath;
-    }
-    let file = this.app.vault.getAbstractFileByPath(path);
-    if (!file) {
-      const folderPath = path.substring(0, path.lastIndexOf("/"));
-      if (folderPath && folderPath !== path) {
-        try {
-          await this.createFolderRecursive(folderPath);
-        } catch (error) {
-        }
-      }
-      await this.app.vault.create(path, "");
-      file = this.app.vault.getAbstractFileByPath(path);
-    }
-    if (file instanceof import_obsidian7.TFile) {
-      return file;
-    } else {
-      throw new Error("Failed to get or create default Todo.txt file");
-    }
-  }
-  // Create folders recursively
-  async createFolderRecursive(folderPath) {
-    const parts = folderPath.split("/");
-    let currentPath = "";
-    for (const part of parts) {
-      currentPath = currentPath ? `${currentPath}/${part}` : part;
-      if (!this.app.vault.getAbstractFileByPath(currentPath)) {
-        await this.app.vault.createFolder(currentPath);
-      }
-    }
-  }
-  // Convert filter to state
-  getStartupState(filter) {
-    switch (filter.toLowerCase()) {
-      case "all":
-        return { selectedProject: "", selectedTimeFilter: "", archivedFilter: false, completedFilter: false };
-      case "inbox":
-        return { selectedProject: "Inbox", selectedTimeFilter: "", archivedFilter: false, completedFilter: false };
-      case "today":
-        return { selectedProject: "", selectedTimeFilter: "today", archivedFilter: false, completedFilter: false };
-      case "upcoming":
-        return { selectedProject: "", selectedTimeFilter: "upcoming", archivedFilter: false, completedFilter: false };
-      case "archived":
-        return { selectedProject: "", selectedTimeFilter: "", archivedFilter: true, completedFilter: false };
-      case "completed":
-        return { selectedProject: "", selectedTimeFilter: "", archivedFilter: false, completedFilter: true };
-      default:
-        return { selectedProject: filter, selectedTimeFilter: "", archivedFilter: false, completedFilter: false };
-    }
+    return this.fileOps.getDefaultTodoFile(this.settings.todoFilePath);
   }
   // Open or focus default view
   async activateView() {
@@ -4373,7 +5005,7 @@ ${taskLine}` : taskLine;
       }
     }
     const leaf = this.app.workspace.getLeaf(true);
-    const startupState = this.getStartupState(this.settings.startupFilter);
+    const startupState = this.taskOps.getStartupState(this.settings.startupFilter);
     await leaf.setViewState({
       type: VIEW_TYPE_TODO_TXT,
       state: { file: defaultFilePath, ...startupState },

@@ -9,6 +9,8 @@
 ### 📋 **Smart Task Management**
 - **Todo.txt format** - Simple, portable, future-proof
 - **Multiple task files** - Any .txt file becomes a task list automatically
+- **Create new files** - Quickly create new `.txt` task files via command palette
+- **WikiLink support** - Type `[[` in task titles or descriptions to link to vault files
 - **Quick filters** - All, Today, Upcoming, Inbox, Archived, Completed
 - **Flexible sorting** - By priority, due date, creation date, alphabetical, projects, or contexts
 - **Project organization** - Custom icons, pinning, drag & drop reordering, bulk operations
@@ -16,14 +18,14 @@
 - **Due dates** - Smart date recognition with status indicators
 - **Recurring tasks** - Flexible recurrence patterns
 - **Context tags** - Organize by location, energy, or focus
-- **Task notes** - Extended descriptions with link support
+- **Task notes** - Extended descriptions with link and WikiLink support
 
 ### 🚀 **Modern Interface**
 - **Mobile responsive** - Full functionality on all devices
 - **Theme compatible** - Works seamlessly with all Obsidian themes
 - **Flexible sidebar** - Collapsible project panel for more workspace
 - **Instant search** - Find tasks across all projects
-- **Smart suggestions** - Autocomplete for projects, contexts, and priorities
+- **Smart suggestions** - Autocomplete for projects, contexts, priorities, and vault files
 - **Keyboard shortcuts** - Assign custom hotkeys to “Add task” and “Open task”
 - **Bulk operations** - Manage multiple completed tasks at once
 
@@ -39,6 +41,7 @@ Or use symbol shortcuts (works like `/`):
 - `+project` - Assign to projects
 - `!priority` - Set priority levels
 - `*date` - Set due dates
+- `[[` - Link to vault files (WikiLink)
 
 ## 🔧 Installation
 
@@ -56,12 +59,14 @@ Or use symbol shortcuts (works like `/`):
 
 ### Getting Started
 1. Open the plugin via ribbon icon or `Ctrl/Cmd+P` → "Open task"
-2. Create your first task by clicking "Add task" or assign a custom hotkey in Settings → Hotkeys
-3. Organize with projects, set priorities, and add due dates
+2. Create a new task file with `Ctrl/Cmd+P` → "Todo.txt: Create new file"
+3. Create your first task by clicking "Add task" or assign a custom hotkey in Settings → Hotkeys
+4. Organize with projects, set priorities, and add due dates
+5. Link to vault notes by typing `[[` in task titles or descriptions
 
 ### Todo.txt Format
 ```txt
-(A) 2025-08-03 @✨Feature Add due date in Todo.txt +Inbox due:2025-06-25
+(A) 2025-08-03 @✨Feature Add due date — [[Development Notes]] +Inbox due:2025-06-25
 (B) 2025-08-03 Solve Python #problems rec:1m,3 +Coding due:2025-08-20
 (C) 2025-08-03 Buy more groceries +Shop due:2025-08-18 ||Get essentials like milk, eggs, bread, and vegetables from https://example.com
 2025-08-03 Read Chapter 4 of the physics textbook time:2h +Study
@@ -77,7 +82,8 @@ Or use symbol shortcuts (works like `/`):
 - `rec:1m,3` - Monthly recurrence on 3rd
 - `time:2h` - Custom key:value pairs
 - `https://example.com` - Clickable links
-- `||Get essentials...` - Task notes
+- `[[Development Notes]]` - WikiLinks to vault files
+- `||Get essentials...` - Task notes (supports links and WikiLinks)
 
 ### Recurring Tasks
 Support for flexible recurrence patterns:
@@ -117,8 +123,10 @@ Support for flexible recurrence patterns:
 ## 🎯 Pro Tips
 
 - Set a custom hotkey for "Todo.txt: Add task" in Settings → Hotkeys for quick task creation anywhere in Obsidian
+- Use "Todo.txt: Create new file" to set up separate task lists for different areas of life
 - Pin the Todo.txt file to the Obsidian sidebar for quick access
 - Use multiple .txt files for different contexts: `work.txt`, `personal.txt`
+- Link related notes using WikiLinks (`[[Note Name]]`) to connect tasks with docs, meeting notes, or resources
 - Search with hashtags: `#meeting` finds all meeting-related tasks
 - Set up projects for different areas: `+Work`, `+Personal`, `+Learning`
 - Use contexts for work types: `@🐞Bug`, `@✨Feature`, `@⚙️Refector`
