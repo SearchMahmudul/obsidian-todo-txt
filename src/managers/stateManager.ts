@@ -27,9 +27,7 @@ export class StateManager {
         if (state.file) {
             const file = view.app.vault.getAbstractFileByPath(state.file);
             if (file instanceof TFile) {
-                view.setFile(file);
-                const content = await view.app.vault.read(file);
-                await view.setViewData(content, true);
+                await view.leaf.openFile(file);
             } else {
                 await view.loadDefaultFile();
             }

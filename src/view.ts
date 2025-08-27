@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, TFile } from 'obsidian';
+import { TextFileView, WorkspaceLeaf, TFile } from 'obsidian';
 import { TodoItem, VIEW_TYPE_TODO_TXT } from './types';
 import { TodoParser } from './parser';
 import TodoTxtPlugin from './main';
@@ -11,9 +11,8 @@ import { FileService } from './services/fileService';
 import { TaskService } from './services/taskService';
 import { ProjectService } from './services/projectService';
 
-export class TodoTxtView extends ItemView {
+export class TodoTxtView extends TextFileView {
 	private todoItems: TodoItem[] = [];
-	private file: TFile | null = null;
 
 	// View managers
 	private renderer: ViewRenderer;
@@ -40,8 +39,10 @@ export class TodoTxtView extends ItemView {
 		this.projectService = new ProjectService(this.fileService, this.projectManager);
 		this.taskManager = new TaskManager(this.app);
 		this.stateManager = new StateManager();
+
+		// Use contentEl for rendering
 		this.renderer = new ViewRenderer(
-			this.containerEl,
+			this.contentEl,
 			this.taskManager,
 			this.projectManager,
 			this.filterManager,
@@ -172,37 +173,42 @@ export class TodoTxtView extends ItemView {
 		return VIEW_TYPE_TODO_TXT;
 	}
 
-	getDisplayText(): string {
-		return this.file?.basename || 'Tasks';
-	}
-
 	getIcon(): string {
 		return 'circle-check-big';
 	}
 
-	// Initialize view container
-	async onOpen(): Promise<void> {
-		this.containerEl.empty();
-		this.containerEl.addClass('todo-txt-view');
-		this.render();
+	getViewData(): string {
+		return this.data || '';
 	}
 
-	// Parse and set todo data
-	async setViewData(data: string, clear: boolean): Promise<void> {
+	setViewData(data: string, clear: boolean): void {
+		this.data = data;
+
 		if (clear) {
 			this.todoItems = [];
 		}
+
 		this.todoItems = TodoParser.parseTodoTxt(data);
-		await this.updateManagers();
-		this.refresh();
+		this.updateManagers().then(() => this.refresh());
 	}
 
-	// Set current file and load settings
-	setFile(file: TFile): void {
-		this.file = file;
+	clear(): void {
+		this.contentEl.empty();
+	}
+
+	// Called when view opens
+	async onOpen(): Promise<void> {
+		this.contentEl.empty();
+		this.contentEl.addClass('todo-txt-view');
+		this.render();
+	}
+
+	// Called when file loads
+	async onLoadFile(file: TFile): Promise<void> {
 		this.projectManager.loadPinnedProjects(file);
 		this.projectManager.loadAllKnownProjects(file);
 		this.projectManager.loadProjectIcons(file);
+		await super.onLoadFile(file);
 	}
 
 	// Restore view state
@@ -267,7 +273,7 @@ export class TodoTxtView extends ItemView {
 	async loadFileContent(): Promise<void> {
 		if (this.file) {
 			const content = await this.fileService.readFile(this.file);
-			await this.setViewData(content, true);
+			this.setViewData(content, true);
 		}
 	}
 
@@ -286,6 +292,12 @@ export class TodoTxtView extends ItemView {
 		this.filterManager.setQuickFilter(filter);
 	}
 
+	// Clean up on view close
+	async onClose(): Promise<void> {
+		this.renderer.destroy();
+		await super.onClose();
+	}
+
 	public getFile(): TFile | null { return this.file; }
 	public getFilterManager(): FilterManager { return this.filterManager; }
 	public getProjectManager(): ProjectManager { return this.projectManager; }
@@ -294,9 +306,7 @@ export class TodoTxtView extends ItemView {
 	public async loadDefaultFile(): Promise<void> {
 		try {
 			const defaultFile = await this.plugin.getDefaultTodoFile();
-			this.file = defaultFile;
-			const content = await this.fileService.readFile(defaultFile);
-			await this.setViewData(content, true);
+			await this.leaf.openFile(defaultFile);
 		} catch (error) {
 			console.error('Failed to load default todo file:', error);
 		}
