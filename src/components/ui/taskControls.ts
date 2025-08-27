@@ -104,9 +104,9 @@ export class TaskControls {
         const sortToggleBtn = container.createDiv('sort-toggle-btn');
         const sortSvg = createSVGElement(Icons.sort);
         sortToggleBtn.appendChild(sortSvg);
-        sortToggleBtn.setAttribute('title', 'Toggle sort options');
+        sortToggleBtn.setAttribute('title', 'Sort options');
 
-        // Toggle sort options visibility
+        // Sort options visibility
         sortToggleBtn.addEventListener('click', () => {
             this.sortOptionsVisible = !this.sortOptionsVisible;
             const sortOptionsWrapper = container.parentElement?.querySelector('.sort-options-wrapper');

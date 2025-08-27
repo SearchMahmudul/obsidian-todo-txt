@@ -92,14 +92,8 @@ export class TaskInputHandler {
     // Handle keyboard navigation and submission
     handleKeyDown(e: KeyboardEvent, onSubmit: () => void): void {
         const activeHandler = this.suggestionManager.getActiveHandler();
-        if (activeHandler && activeHandler.handleKeyNavigation(e)) {
-            return;
-        }
-
-        // Submit on Enter if no suggestions
-        if (e.key === 'Enter' && !activeHandler) {
-            e.preventDefault();
-            onSubmit();
+        if (activeHandler && e.key !== 'Enter') {
+            activeHandler.handleKeyNavigation(e);
         }
     }
 

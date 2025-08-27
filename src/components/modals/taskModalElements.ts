@@ -55,18 +55,6 @@ export class TaskModalElements {
         taskInput.setAttribute('placeholder', 'Next thing to do');
         taskInput.value = this.dataHandler.taskDescription;
 
-        // Handle Enter key submission
-        taskInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                if (this.isMobile()) {
-                    e.preventDefault();
-                    this.onSubmit();
-                } else {
-                    e.preventDefault();
-                }
-            }
-        });
-
         return taskInput;
     }
 

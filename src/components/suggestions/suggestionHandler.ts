@@ -98,27 +98,48 @@ export class SuggestionHandler {
 
         document.body.appendChild(this.suggestions);
 
-        // Check for viewport overflow and adjust position
+        // Check viewport overflow and adjust position
         const suggestionRect = this.suggestions.getBoundingClientRect();
         let finalTop = rect.top + cursorCoords.top + cursorCoords.height + 5;
         let finalLeft = rect.left + cursorCoords.left;
 
+        // Mobile adjustments
+        const isMobile = window.innerWidth <= 768;
+        const padding = isMobile ? 10 : 5;
+
+        // Set max-width
+        const maxWidth = isMobile ?
+            window.innerWidth - (padding * 2) :
+            400;
+        this.suggestions.style.setProperty('--suggestion-max-width', `${maxWidth}px`);
+
+        // Get updated rect
+        const updatedRect = this.suggestions.getBoundingClientRect();
+
         // Check right overflow
-        if (finalLeft + suggestionRect.width > window.innerWidth) {
-            finalLeft = rect.left + cursorCoords.left - suggestionRect.width;
+        if (finalLeft + updatedRect.width > window.innerWidth - padding) {
+            if (isMobile) {
+                // Right-align to screen edge
+                finalLeft = window.innerWidth - updatedRect.width - padding;
+                finalLeft = Math.max(padding, finalLeft);
+            } else {
+                // Left-align to cursor
+                finalLeft = rect.left + cursorCoords.left - updatedRect.width;
+                finalLeft = Math.max(padding, finalLeft);
+            }
         }
+
+        finalLeft = Math.max(padding, finalLeft);
 
         // Check bottom overflow
-        if (finalTop + suggestionRect.height > window.innerHeight) {
-            finalTop = rect.top + cursorCoords.top - suggestionRect.height - 5;
+        if (finalTop + updatedRect.height > window.innerHeight - padding) {
+            finalTop = rect.top + cursorCoords.top - updatedRect.height - 5;
+            finalTop = Math.max(padding, finalTop);
         }
 
-        // Update position if adjusted
-        if (finalTop !== rect.top + cursorCoords.top + cursorCoords.height + 5 ||
-            finalLeft !== rect.left + cursorCoords.left) {
-            this.suggestions.style.setProperty('--suggestion-top', `${finalTop}px`);
-            this.suggestions.style.setProperty('--suggestion-left', `${finalLeft}px`);
-        }
+        // Update position
+        this.suggestions.style.setProperty('--suggestion-top', `${finalTop}px`);
+        this.suggestions.style.setProperty('--suggestion-left', `${finalLeft}px`);
 
         // Select first item
         this.selectedSuggestionIndex = 0;

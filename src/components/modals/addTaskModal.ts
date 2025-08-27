@@ -140,6 +140,17 @@ export class AddTaskModal extends Modal {
 
         // Handle keyboard events
         this.ui.onKeyDown((e: KeyboardEvent) => {
+            const activeHandler = this.suggestionManager.getActiveHandler();
+            if (activeHandler && activeHandler.handleKeyNavigation(e)) {
+                return;
+            }
+
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                this.submitTask();
+                return;
+            }
+
             this.inputHandler.handleKeyDown(e, () => this.submitTask());
         });
 
