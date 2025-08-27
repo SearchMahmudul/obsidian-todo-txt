@@ -61,6 +61,35 @@ export default class TodoTxtPlugin extends Plugin {
             }
         });
 
+        // Create file command
+        this.addCommand({
+            id: 'create-new-file',
+            name: 'Create new file',
+            callback: async () => {
+                const todoPath = this.settings.todoFilePath;
+                const folder = todoPath.substring(0, todoPath.lastIndexOf('/'));
+                const fileName = todoPath.substring(todoPath.lastIndexOf('/') + 1);
+                const baseName = fileName.replace('.txt', '');
+
+                if (!this.app.vault.getAbstractFileByPath(todoPath)) {
+                    const newFile = await this.app.vault.create(todoPath, '');
+                    await this.openTodoTxtView(newFile as TFile);
+                    return;
+                }
+
+                let counter = 1;
+                let newPath = `${folder}/${baseName} ${counter}.txt`;
+
+                while (this.app.vault.getAbstractFileByPath(newPath)) {
+                    counter++;
+                    newPath = `${folder}/${baseName} ${counter}.txt`;
+                }
+
+                const newFile = await this.app.vault.create(newPath, '');
+                await this.openTodoTxtView(newFile as TFile);
+            }
+        });
+
         // Auto-open on startup
         if (this.settings.openOnStartup) {
             setTimeout(() => {
